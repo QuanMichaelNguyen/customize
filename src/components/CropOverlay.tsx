@@ -1,3 +1,6 @@
+/* 
+Crop rectangle UI with corner drag handles and aspect preset buttons.
+*/
 import { useRef } from "react";
 import { useCropStore } from "../stores/cropStore";
 import { usePlaybackStore } from "../stores/playbackStore";
@@ -37,16 +40,28 @@ function computeNewRegion(
     height = bottom - y;
   } else if (corner === "tr") {
     y = Math.max(0, Math.min(start.y + normDY, bottom - MIN_CROP_SIZE));
-    width = Math.max(MIN_CROP_SIZE, Math.min(start.width + normDX, 1 - start.x));
+    width = Math.max(
+      MIN_CROP_SIZE,
+      Math.min(start.width + normDX, 1 - start.x),
+    );
     height = bottom - y;
   } else if (corner === "bl") {
     x = Math.max(0, Math.min(start.x + normDX, right - MIN_CROP_SIZE));
     width = right - x;
-    height = Math.max(MIN_CROP_SIZE, Math.min(start.height + normDY, 1 - start.y));
+    height = Math.max(
+      MIN_CROP_SIZE,
+      Math.min(start.height + normDY, 1 - start.y),
+    );
   } else {
     // br
-    width = Math.max(MIN_CROP_SIZE, Math.min(start.width + normDX, 1 - start.x));
-    height = Math.max(MIN_CROP_SIZE, Math.min(start.height + normDY, 1 - start.y));
+    width = Math.max(
+      MIN_CROP_SIZE,
+      Math.min(start.width + normDX, 1 - start.x),
+    );
+    height = Math.max(
+      MIN_CROP_SIZE,
+      Math.min(start.height + normDY, 1 - start.y),
+    );
   }
 
   return { x, y, width, height };
@@ -69,8 +84,12 @@ export default function CropOverlay({ containerRef }: CropOverlayProps) {
 
   // Compute CSS crop box positions
   const displayRect = getDisplayRect();
-  const cssLeft = cropRegion ? displayRect.left + cropRegion.x * displayRect.width : 0;
-  const cssTop = cropRegion ? displayRect.top + cropRegion.y * displayRect.height : 0;
+  const cssLeft = cropRegion
+    ? displayRect.left + cropRegion.x * displayRect.width
+    : 0;
+  const cssTop = cropRegion
+    ? displayRect.top + cropRegion.y * displayRect.height
+    : 0;
   const cssWidth = cropRegion ? cropRegion.width * displayRect.width : 0;
   const cssHeight = cropRegion ? cropRegion.height * displayRect.height : 0;
 
@@ -92,9 +111,16 @@ export default function CropOverlay({ containerRef }: CropOverlayProps) {
     const drag = cropDragRef.current;
     if (!drag) return;
     const rect = getDisplayRect();
-    const normDX = rect.width > 0 ? (e.clientX - drag.startClientX) / rect.width : 0;
-    const normDY = rect.height > 0 ? (e.clientY - drag.startClientY) / rect.height : 0;
-    drag.region = computeNewRegion(drag.corner, drag.startRegion, normDX, normDY);
+    const normDX =
+      rect.width > 0 ? (e.clientX - drag.startClientX) / rect.width : 0;
+    const normDY =
+      rect.height > 0 ? (e.clientY - drag.startClientY) / rect.height : 0;
+    drag.region = computeNewRegion(
+      drag.corner,
+      drag.startRegion,
+      normDX,
+      normDY,
+    );
   };
 
   const commitDrag = () => {
@@ -108,7 +134,10 @@ export default function CropOverlay({ containerRef }: CropOverlayProps) {
     "absolute w-3 h-3 bg-white border border-gray-400 pointer-events-auto";
 
   return (
-    <div className="absolute inset-0 pointer-events-none" data-testid="crop-overlay">
+    <div
+      className="absolute inset-0 pointer-events-none"
+      data-testid="crop-overlay"
+    >
       {cropRegion && (
         <>
           {/* Dark regions outside the crop box */}
@@ -138,7 +167,12 @@ export default function CropOverlay({ containerRef }: CropOverlayProps) {
           <div
             data-testid="crop-box"
             className="absolute border-2 border-emerald-400 pointer-events-none"
-            style={{ left: cssLeft, top: cssTop, width: cssWidth, height: cssHeight }}
+            style={{
+              left: cssLeft,
+              top: cssTop,
+              width: cssWidth,
+              height: cssHeight,
+            }}
           >
             <div
               data-testid="corner-tl"

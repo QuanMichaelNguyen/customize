@@ -1,22 +1,26 @@
-import type { TextOverlay } from '../types/editor'
-import { useOverlaysStore } from '../stores/overlaysStore'
+/* 
+Overlay style editor panel. Allows changing text, font size, 
+color, background, and deleting the overlay.
+*/
+import type { TextOverlay } from "../types/editor";
+import { useOverlaysStore } from "../stores/overlaysStore";
 
-const FONT_SIZES = [12, 16, 20, 24, 32, 48]
+const FONT_SIZES = [12, 16, 20, 24, 32, 48];
 
 export default function OverlayStylePanel() {
-  const overlays = useOverlaysStore((s) => s.overlays)
-  const selectedOverlayId = useOverlaysStore((s) => s.selectedOverlayId)
-  const overlay = overlays.find((o) => o.id === selectedOverlayId)
+  const overlays = useOverlaysStore((s) => s.overlays);
+  const selectedOverlayId = useOverlaysStore((s) => s.selectedOverlayId);
+  const overlay = overlays.find((o) => o.id === selectedOverlayId);
 
-  if (!overlay) return null
+  if (!overlay) return null;
 
-  const update = (partial: Partial<Omit<TextOverlay, 'id'>>) => {
-    useOverlaysStore.getState().updateOverlay(overlay.id, partial)
-  }
+  const update = (partial: Partial<Omit<TextOverlay, "id">>) => {
+    useOverlaysStore.getState().updateOverlay(overlay.id, partial);
+  };
 
   const handleDelete = () => {
-    useOverlaysStore.getState().removeOverlay(overlay.id)
-  }
+    useOverlaysStore.getState().removeOverlay(overlay.id);
+  };
 
   return (
     <div
@@ -43,7 +47,9 @@ export default function OverlayStylePanel() {
           className="bg-gray-700 border border-gray-600 rounded px-2 py-0.5 text-white"
         >
           {FONT_SIZES.map((s) => (
-            <option key={s} value={s}>{s}px</option>
+            <option key={s} value={s}>
+              {s}px
+            </option>
           ))}
         </select>
       </label>
@@ -64,17 +70,21 @@ export default function OverlayStylePanel() {
         <input
           data-testid="overlay-bg-input"
           type="color"
-          value={overlay.background === 'transparent' ? '#000000' : overlay.background}
+          value={
+            overlay.background === "transparent"
+              ? "#000000"
+              : overlay.background
+          }
           onChange={(e) => update({ background: e.target.value })}
           className="h-6 w-8 rounded cursor-pointer border-0 bg-transparent"
         />
         <button
           data-testid="overlay-bg-transparent-btn"
-          onClick={() => update({ background: 'transparent' })}
+          onClick={() => update({ background: "transparent" })}
           className={`px-2 py-0.5 rounded text-xs ${
-            overlay.background === 'transparent'
-              ? 'bg-indigo-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            overlay.background === "transparent"
+              ? "bg-indigo-600 text-white"
+              : "bg-gray-700 text-gray-300 hover:bg-gray-600"
           }`}
         >
           None
@@ -89,5 +99,5 @@ export default function OverlayStylePanel() {
         Delete
       </button>
     </div>
-  )
+  );
 }
