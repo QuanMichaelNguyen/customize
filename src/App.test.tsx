@@ -3,6 +3,7 @@ import { render, fireEvent } from '@testing-library/react'
 import App from './App'
 import { usePlaybackStore } from './stores/playbackStore'
 import { useClipsStore } from './stores/clipsStore'
+import { useOverlaysStore } from './stores/overlaysStore'
 
 // Mock child components to avoid canvas/RAF setup in App-level tests
 vi.mock('./components/VideoPlayer', () => ({
@@ -20,6 +21,7 @@ vi.mock('./components/Timeline', () => ({
 beforeEach(() => {
   usePlaybackStore.getState().reset()
   useClipsStore.getState().reset()
+  useOverlaysStore.getState().reset()
 })
 
 describe('App', () => {
@@ -93,5 +95,47 @@ describe('Split button', () => {
     const clips = useClipsStore.getState().clips
     expect(clips.find((c) => c.endTime === 5)).toBeTruthy()
     expect(clips.find((c) => c.startTime === 5)).toBeTruthy()
+  })
+})
+
+describe('Add Text button', () => {
+  it('does not render when no video is loaded', () => {
+    const { queryByTestId } = render(<App />)
+    expect(queryByTestId('add-text-btn')).toBeNull()
+  })
+
+  it('renders when video is loaded', () => {
+    usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1280, videoHeight: 720 })
+    const { getByTestId } = render(<App />)
+    expect(getByTestId('add-text-btn')).toBeTruthy()
+  })
+
+  it('creates an overlay with defaults and selects it', () => {
+    usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1280, videoHeight: 720 })
+    usePlaybackStore.getState().setCurrentTime(5)
+    const { getByTestId } = render(<App />)
+    fireEvent.click(getByTestId('add-text-btn'))
+    const { overlays, selectedOverlayId } = useOverlaysStore.getState()
+    expect(overlays).toHaveLength(1)
+    expect(overlays[0].content).toBe('Text')
+    expect(overlays[0].x).toBe(0.5)
+    expect(overlays[0].y).toBe(0.5)
+    expect(selectedOverlayId).toBe(overlays[0].id)
+  })
+
+  it('clamps startTime to 0 when currentTime < 2.5', () => {
+    usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1280, videoHeight: 720 })
+    usePlaybackStore.getState().setCurrentTime(0)
+    const { getByTestId } = render(<App />)
+    fireEvent.click(getByTestId('add-text-btn'))
+    expect(useOverlaysStore.getState().overlays[0].startTime).toBe(0)
+  })
+
+  it('clamps endTime to duration when currentTime is near end', () => {
+    usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1280, videoHeight: 720 })
+    usePlaybackStore.getState().setCurrentTime(10)
+    const { getByTestId } = render(<App />)
+    fireEvent.click(getByTestId('add-text-btn'))
+    expect(useOverlaysStore.getState().overlays[0].endTime).toBe(10)
   })
 })

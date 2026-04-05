@@ -1,14 +1,18 @@
 import { useRef } from "react";
 import VideoPlayer from "./components/VideoPlayer";
 import Timeline from "./components/Timeline";
+import OverlayStylePanel from "./components/OverlayStylePanel";
 import { usePlaybackStore } from "./stores/playbackStore";
 import { useClipsStore } from "./stores/clipsStore";
+import { useOverlaysStore } from "./stores/overlaysStore";
 
 export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hasVideo = usePlaybackStore((s) => s.hasVideo);
   const currentTime = usePlaybackStore((s) => s.currentTime);
+  const duration = usePlaybackStore((s) => s.duration);
   const clips = useClipsStore((s) => s.clips);
+  const selectedOverlayId = useOverlaysStore((s) => s.selectedOverlayId);
 
   const activeClip = clips.find(
     (c) => currentTime >= c.startTime && currentTime <= c.endTime,
@@ -21,6 +25,24 @@ export default function App() {
   const handleSplit = () => {
     if (!activeClip) return;
     useClipsStore.getState().splitClip(activeClip.id, currentTime);
+  };
+
+  const handleAddText = () => {
+    const startTime = Math.max(0, currentTime - 2.5);
+    const endTime = Math.min(duration, currentTime + 2.5);
+    const id = crypto.randomUUID();
+    useOverlaysStore.getState().addOverlay({
+      id,
+      content: 'Text',
+      startTime,
+      endTime,
+      x: 0.5,
+      y: 0.5,
+      fontSize: 24,
+      color: '#ffffff',
+      background: 'rgba(0,0,0,0.5)',
+    });
+    useOverlaysStore.getState().setSelectedOverlay(id);
   };
 
   return (
@@ -45,8 +67,18 @@ export default function App() {
           >
             Split
           </button>
+          <button
+            data-testid="add-text-btn"
+            onClick={handleAddText}
+            className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700"
+          >
+            Add Text
+          </button>
         </div>
       )}
+
+      {/* Overlay style panel — shown when an overlay is selected */}
+      {hasVideo && selectedOverlayId && <OverlayStylePanel />}
 
       {/* Timeline strip */}
       <div className="h-20 bg-gray-800 border-t border-gray-700 px-2 py-3">

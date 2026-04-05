@@ -3,6 +3,23 @@ import { renderHook } from '@testing-library/react'
 import { useTimelineRenderer } from '../useTimelineRenderer'
 import { usePlaybackStore } from '../../stores/playbackStore'
 import { useClipsStore } from '../../stores/clipsStore'
+import { useOverlaysStore } from '../../stores/overlaysStore'
+import type { TextOverlay } from '../../types/editor'
+
+function makeOverlay(overrides: Partial<TextOverlay> = {}): TextOverlay {
+  return {
+    id: 'o1',
+    content: 'Hello',
+    startTime: 0,
+    endTime: 10,
+    x: 0.5,
+    y: 0.5,
+    fontSize: 24,
+    color: '#ffffff',
+    background: 'rgba(0,0,0,0.5)',
+    ...overrides,
+  }
+}
 
 // Mock requestAnimationFrame / cancelAnimationFrame
 let rafCallbacks: FrameRequestCallback[] = []
@@ -11,6 +28,7 @@ let rafHandleCounter = 0
 beforeEach(() => {
   usePlaybackStore.getState().reset()
   useClipsStore.getState().reset()
+  useOverlaysStore.getState().reset()
   rafCallbacks = []
   rafHandleCounter = 0
 
@@ -227,6 +245,83 @@ describe('useTimelineRenderer', () => {
       expect(ctx.moveTo).toHaveBeenCalledWith(0, 0)
       expect(ctx.moveTo).toHaveBeenCalledWith(150, 0)
       expect(ctx.moveTo).toHaveBeenCalledWith(300, 0)
+    })
+  })
+
+  describe('overlay time range row', () => {
+    it('draws an amber bar for a single overlay', () => {
+      const { ref: canvasRef, ctx } = makeCanvasRef(100, 80)
+      const videoRef = makeVideoRef(0)
+
+      usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1920, videoHeight: 1080 })
+      useOverlaysStore.getState().addOverlay(makeOverlay({ id: 'o1', startTime: 2, endTime: 6 }))
+
+      renderRenderer(canvasRef, videoRef)
+      rafCallbacks[0](0)
+
+      // bar from x=20 to x=60 (width=40) on 100px canvas for duration=10
+      // overlayRowY = 80 - 10 - 2 = 68
+      const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls
+      expect(fillCalls).toContainEqual([20, 68, 40, 10])
+    })
+
+    it('draws two bars for two non-overlapping overlays', () => {
+      const { ref: canvasRef, ctx } = makeCanvasRef(100, 80)
+      const videoRef = makeVideoRef(0)
+
+      usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1920, videoHeight: 1080 })
+      useOverlaysStore.getState().addOverlay(makeOverlay({ id: 'o1', startTime: 0, endTime: 4 }))
+      useOverlaysStore.getState().addOverlay(makeOverlay({ id: 'o2', startTime: 6, endTime: 10 }))
+
+      renderRenderer(canvasRef, videoRef)
+      rafCallbacks[0](0)
+
+      const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls
+      expect(fillCalls).toContainEqual([0, 68, 40, 10])
+      expect(fillCalls).toContainEqual([60, 68, 40, 10])
+    })
+
+    it('draws no overlay bars when store is empty', () => {
+      const { ref: canvasRef, ctx } = makeCanvasRef(100, 80)
+      const videoRef = makeVideoRef(0)
+
+      usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1920, videoHeight: 1080 })
+
+      renderRenderer(canvasRef, videoRef)
+      expect(() => rafCallbacks[0](0)).not.toThrow()
+
+      const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls
+      // Only track background rect should be drawn (no overlay rects)
+      expect(fillCalls.length).toBe(1)
+    })
+
+    it('does not draw a bar when overlay startTime === endTime (zero width)', () => {
+      const { ref: canvasRef, ctx } = makeCanvasRef(100, 80)
+      const videoRef = makeVideoRef(0)
+
+      usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1920, videoHeight: 1080 })
+      useOverlaysStore.getState().addOverlay(makeOverlay({ id: 'o1', startTime: 5, endTime: 5 }))
+
+      renderRenderer(canvasRef, videoRef)
+      rafCallbacks[0](0)
+
+      const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls
+      // No bar drawn for zero-width overlay
+      expect(fillCalls).not.toContainEqual(expect.arrayContaining([68]))
+    })
+
+    it('draws a full-width bar for an overlay spanning the whole duration', () => {
+      const { ref: canvasRef, ctx } = makeCanvasRef(100, 80)
+      const videoRef = makeVideoRef(0)
+
+      usePlaybackStore.getState().setVideoMetadata({ duration: 10, videoWidth: 1920, videoHeight: 1080 })
+      useOverlaysStore.getState().addOverlay(makeOverlay({ id: 'o1', startTime: 0, endTime: 10 }))
+
+      renderRenderer(canvasRef, videoRef)
+      rafCallbacks[0](0)
+
+      const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls
+      expect(fillCalls).toContainEqual([0, 68, 100, 10])
     })
   })
 })

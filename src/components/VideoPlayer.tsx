@@ -2,7 +2,9 @@ import { useEffect, useRef } from "react";
 import { usePlaybackStore } from "../stores/playbackStore";
 import { useClipsStore } from "../stores/clipsStore";
 import { useCropStore } from "../stores/cropStore";
+import { useOverlaysStore } from "../stores/overlaysStore";
 import CropOverlay from "./CropOverlay";
+import TextOverlayLayer from "./TextOverlayLayer";
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -66,6 +68,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     const url = URL.createObjectURL(file);
     blobUrlRef.current = url;
     videoRef.current.src = url;
+    useOverlaysStore.getState().reset();
   };
 
   const handlePlayPause = () => {
@@ -97,6 +100,9 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
         />
         {hasVideo && isCropOverlayOpen && (
           <CropOverlay containerRef={containerRef} />
+        )}
+        {hasVideo && (
+          <TextOverlayLayer containerRef={containerRef} />
         )}
       </div>
       {hasVideo && (

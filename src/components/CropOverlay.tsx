@@ -5,7 +5,7 @@ import { getVideoDisplayRect } from "../utils/cropGeometry";
 import type { CropRegion, AspectRatioPreset } from "../types/editor";
 
 interface CropOverlayProps {
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 type Corner = "tl" | "tr" | "bl" | "br";

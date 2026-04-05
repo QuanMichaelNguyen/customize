@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { usePlaybackStore } from '../stores/playbackStore'
 import { useClipsStore } from '../stores/clipsStore'
+import { useOverlaysStore } from '../stores/overlaysStore'
 import { timeToPixel } from '../utils/timelineGeometry'
 
 /*
@@ -121,6 +122,22 @@ export function useTimelineRenderer(
           ctx.lineTo(outX, cssHeight)
           ctx.stroke()
           ctx.fillRect(outX - 4, 0, 8, 8)
+        }
+      }
+
+      // Overlay time range row — thin amber bars in the lower portion of the canvas
+      const overlays = useOverlaysStore.getState().overlays
+      if (duration > 0 && overlays.length > 0) {
+        const overlayRowH = 10
+        const overlayRowY = cssHeight - overlayRowH - 2
+        ctx.fillStyle = '#f59e0b' // amber-500
+        for (const overlay of overlays) {
+          const barX = timeToPixel(overlay.startTime, duration, cssWidth)
+          const barEnd = timeToPixel(overlay.endTime, duration, cssWidth)
+          const barW = barEnd - barX
+          if (barW > 0) {
+            ctx.fillRect(barX, overlayRowY, barW, overlayRowH)
+          }
         }
       }
 
