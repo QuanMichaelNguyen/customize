@@ -3,6 +3,9 @@ import { usePlaybackStore } from "../stores/playbackStore";
 import { useClipsStore } from "../stores/clipsStore";
 import { useCropStore } from "../stores/cropStore";
 import { useOverlaysStore } from "../stores/overlaysStore";
+import { useTracksStore } from "../stores/tracksStore";
+import { useAudioStore } from "../stores/audioStore";
+import { extractWaveform } from "../utils/extractWaveform";
 import CropOverlay from "./CropOverlay";
 import TextOverlayLayer from "./TextOverlayLayer";
 
@@ -61,6 +64,23 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     const file = e.target.files?.[0];
     if (!file || !videoRef.current) return;
 
+    // Reset all editor state synchronously before setting the new source so the
+    // RAF loop never reads stale data from the previous file.
+    useClipsStore.getState().reset();
+    useCropStore.getState().reset();
+    useOverlaysStore.getState().reset();
+    useTracksStore.getState().reset();
+    useAudioStore.getState().reset();
+
+    // Seed the video track immediately
+    useTracksStore.getState().addTrack({
+      id: "video-0",
+      type: "video",
+      label: "Video",
+      muted: false,
+      volume: 1,
+    });
+
     // Free the old memory by revoking the old URL
     if (blobUrlRef.current) {
       URL.revokeObjectURL(blobUrlRef.current);
@@ -68,7 +88,25 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     const url = URL.createObjectURL(file);
     blobUrlRef.current = url;
     videoRef.current.src = url;
-    useOverlaysStore.getState().reset();
+
+    // Kick off async waveform extraction
+    useAudioStore.getState().setLoading();
+    extractWaveform(file, 2000)
+      .then((data) => {
+        useAudioStore.getState().setWaveform(data);
+        if (data !== null) {
+          useTracksStore.getState().addTrack({
+            id: "audio-0",
+            type: "audio",
+            label: "Audio",
+            muted: false,
+            volume: 1,
+          });
+        }
+      })
+      .catch(() => {
+        useAudioStore.getState().setError();
+      });
   };
 
   const handlePlayPause = () => {
