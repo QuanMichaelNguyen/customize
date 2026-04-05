@@ -1,13 +1,13 @@
 /* 
 Canvas interaction layer (scrub + trim-handle dragging + commit on up/cancel).
 */
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { usePlaybackStore } from "../stores/playbackStore";
 import { useClipsStore } from "../stores/clipsStore";
 import { useAudioStore } from "../stores/audioStore";
 import { useTimelineRenderer } from "../hooks/useTimelineRenderer";
 import { pixelToTime, timeToPixel } from "../utils/timelineGeometry";
-import { LABEL_WIDTH, getRowBands } from "../utils/laneGeometry";
+import { LABEL_WIDTH, AUDIO_ROW_Y } from "../utils/laneGeometry";
 
 interface TimelineProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -29,9 +29,12 @@ export default function Timeline({ videoRef }: TimelineProps) {
   // when waveform data loads (consistent with how ephemeral drag refs are handled).
   const waveformDataRef = useRef(useAudioStore.getState().waveformData);
   // Keep waveformDataRef in sync whenever audioStore updates
-  useAudioStore.subscribe((state) => {
-    waveformDataRef.current = state.waveformData;
-  });
+  useEffect(() => {
+    const unsubscribe = useAudioStore.subscribe((state) => {
+      waveformDataRef.current = state.waveformData;
+    });
+    return unsubscribe;
+  }, []);
 
   useTimelineRenderer(
     canvasRef,
@@ -49,7 +52,6 @@ export default function Timeline({ videoRef }: TimelineProps) {
     const offsetX = e.nativeEvent.offsetX;
     const offsetY = e.nativeEvent.offsetY;
     const canvasWidth = canvas.clientWidth;
-    const canvasHeight = canvas.clientHeight;
     const { duration } = usePlaybackStore.getState();
     const { clips } = useClipsStore.getState();
 
@@ -57,8 +59,7 @@ export default function Timeline({ videoRef }: TimelineProps) {
     if (offsetX < LABEL_WIDTH) return;
 
     // Determine which Y band was clicked
-    const { audioY } = getRowBands(canvasHeight);
-    const inVideoRow = offsetY < audioY;
+    const inVideoRow = offsetY < AUDIO_ROW_Y;
 
     // Hit-test trim handles only in the video row
     if (inVideoRow) {

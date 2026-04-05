@@ -9,7 +9,7 @@ import { useClipsStore } from '../stores/clipsStore'
 import { useOverlaysStore } from '../stores/overlaysStore'
 import { useAudioStore } from '../stores/audioStore'
 import { timeToPixel } from '../utils/timelineGeometry'
-import { getRowBands, VIDEO_ROW_HEIGHT, AUDIO_ROW_HEIGHT, LABEL_WIDTH } from '../utils/laneGeometry'
+import { VIDEO_ROW_Y, AUDIO_ROW_Y, VIDEO_ROW_HEIGHT, AUDIO_ROW_HEIGHT, LABEL_WIDTH } from '../utils/laneGeometry'
 import { buildWaveformCache } from '../utils/waveformRenderer'
 import type { WaveformData } from '../types/editor'
 
@@ -72,7 +72,8 @@ export function useTimelineRenderer(
       const safeDuration = Math.max(duration, 0.001)
       const playheadX = timeToPixel(currentTime, safeDuration, cssWidth, LABEL_WIDTH)
 
-      const { videoY, audioY } = getRowBands(cssHeight)
+      const videoY = VIDEO_ROW_Y
+      const audioY = AUDIO_ROW_Y
 
       // Clear
       ctx.clearRect(0, 0, cssWidth, cssHeight)
