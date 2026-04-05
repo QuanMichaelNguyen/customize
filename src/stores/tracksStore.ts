@@ -21,7 +21,7 @@ const initialState: TracksState = {
 }
 
 export const useTracksStore = create<TracksState & TracksActions>()(
-  (set, get) => ({
+  (set) => ({
     ...initialState,
 
     // Replace track if id already exists, otherwise append

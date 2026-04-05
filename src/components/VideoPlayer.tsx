@@ -1,3 +1,7 @@
+/* 
+File load, video metadata/play-pause sync, state resets, 
+waveform extraction kickoff, crop/text overlay layer host.
+*/
 import { useEffect, useRef } from "react";
 import { usePlaybackStore } from "../stores/playbackStore";
 import { useClipsStore } from "../stores/clipsStore";
@@ -51,6 +55,19 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     };
   }, [videoRef, setVideoMetadata, setPlaying, initDefaultClip]); // if any of these dependency changed, useEffect got trigger again
 
+  // Sync tracksStore audio track muted/volume to the video element imperatively.
+  // We cannot use JSX `muted` attribute — React silently ignores it on re-renders (React #6544).
+  useEffect(() => {
+    return useTracksStore.subscribe((state) => {
+      const video = videoRef.current;
+      if (!video) return;
+      const audioTrack = state.tracks.find((t) => t.id === "audio-0");
+      if (!audioTrack) return;
+      video.muted = audioTrack.muted;
+      video.volume = audioTrack.volume;
+    });
+  }, [videoRef]);
+
   useEffect(() => {
     return () => {
       if (blobUrlRef.current) {
@@ -64,15 +81,12 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     const file = e.target.files?.[0];
     if (!file || !videoRef.current) return;
 
-    // Reset all editor state synchronously before setting the new source so the
-    // RAF loop never reads stale data from the previous file.
     useClipsStore.getState().reset();
     useCropStore.getState().reset();
     useOverlaysStore.getState().reset();
     useTracksStore.getState().reset();
     useAudioStore.getState().reset();
 
-    // Seed the video track immediately
     useTracksStore.getState().addTrack({
       id: "video-0",
       type: "video",
@@ -131,7 +145,10 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
         onChange={handleFileChange}
         className="text-sm text-gray-300"
       />
-      <div ref={containerRef} className="relative flex-1 min-h-0 w-full overflow-hidden">
+      <div
+        ref={containerRef}
+        className="relative flex-1 min-h-0 w-full overflow-hidden"
+      >
         <video
           ref={videoRef}
           className={`w-full h-full object-contain ${!hasVideo ? "hidden" : ""}`}
@@ -139,9 +156,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
         {hasVideo && isCropOverlayOpen && (
           <CropOverlay containerRef={containerRef} />
         )}
-        {hasVideo && (
-          <TextOverlayLayer containerRef={containerRef} />
-        )}
+        {hasVideo && <TextOverlayLayer containerRef={containerRef} />}
       </div>
       {hasVideo && (
         <div className="flex gap-2">

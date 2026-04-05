@@ -1,8 +1,13 @@
+/* 
+Canvas interaction layer (scrub + trim-handle dragging + commit on up/cancel).
+*/
 import { useRef } from "react";
 import { usePlaybackStore } from "../stores/playbackStore";
 import { useClipsStore } from "../stores/clipsStore";
+import { useAudioStore } from "../stores/audioStore";
 import { useTimelineRenderer } from "../hooks/useTimelineRenderer";
 import { pixelToTime, timeToPixel } from "../utils/timelineGeometry";
+import { LABEL_WIDTH, getRowBands } from "../utils/laneGeometry";
 
 interface TimelineProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -16,41 +21,85 @@ export default function Timeline({ videoRef }: TimelineProps) {
   const scrubTimeRef = useRef(0);
   const inPointDragRef = useRef<{ clipId: string; time: number } | null>(null);
   const outPointDragRef = useRef<{ clipId: string; time: number } | null>(null);
-  const activeDragRef = useRef<{ type: "in" | "out"; clipId: string } | null>(null);
+  const activeDragRef = useRef<{ type: "in" | "out"; clipId: string } | null>(
+    null,
+  );
 
-  useTimelineRenderer(canvasRef, videoRef, isDraggingRef, scrubTimeRef, inPointDragRef, outPointDragRef);
+  // waveformDataRef is read by the RAF loop directly — avoids re-triggering the useEffect
+  // when waveform data loads (consistent with how ephemeral drag refs are handled).
+  const waveformDataRef = useRef(useAudioStore.getState().waveformData);
+  // Keep waveformDataRef in sync whenever audioStore updates
+  useAudioStore.subscribe((state) => {
+    waveformDataRef.current = state.waveformData;
+  });
+
+  useTimelineRenderer(
+    canvasRef,
+    videoRef,
+    isDraggingRef,
+    scrubTimeRef,
+    inPointDragRef,
+    outPointDragRef,
+    waveformDataRef,
+  );
 
   // User presses the mouse down on timeline bar
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = e.currentTarget;
     const offsetX = e.nativeEvent.offsetX;
+    const offsetY = e.nativeEvent.offsetY;
     const canvasWidth = canvas.clientWidth;
+    const canvasHeight = canvas.clientHeight;
     const { duration } = usePlaybackStore.getState();
     const { clips } = useClipsStore.getState();
 
-    // Hit-test handles first — in-point takes priority over out-point when both overlap
-    for (const clip of clips) {
-      const inX = timeToPixel(clip.startTime, duration, canvasWidth);
-      const outX = timeToPixel(clip.endTime, duration, canvasWidth);
+    // Ignore clicks inside the label column
+    if (offsetX < LABEL_WIDTH) return;
 
-      if (Math.abs(offsetX - inX) <= HIT_RADIUS) {
-        canvas.setPointerCapture(e.pointerId);
-        activeDragRef.current = { type: "in", clipId: clip.id };
-        inPointDragRef.current = { clipId: clip.id, time: clip.startTime };
-        return;
-      }
-      if (Math.abs(offsetX - outX) <= HIT_RADIUS) {
-        canvas.setPointerCapture(e.pointerId);
-        activeDragRef.current = { type: "out", clipId: clip.id };
-        outPointDragRef.current = { clipId: clip.id, time: clip.endTime };
-        return;
+    // Determine which Y band was clicked
+    const { audioY } = getRowBands(canvasHeight);
+    const inVideoRow = offsetY < audioY;
+
+    // Hit-test trim handles only in the video row
+    if (inVideoRow) {
+      for (const clip of clips) {
+        const inX = timeToPixel(
+          clip.startTime,
+          duration,
+          canvasWidth,
+          LABEL_WIDTH,
+        );
+        const outX = timeToPixel(
+          clip.endTime,
+          duration,
+          canvasWidth,
+          LABEL_WIDTH,
+        );
+
+        if (Math.abs(offsetX - inX) <= HIT_RADIUS) {
+          canvas.setPointerCapture(e.pointerId);
+          activeDragRef.current = { type: "in", clipId: clip.id };
+          inPointDragRef.current = { clipId: clip.id, time: clip.startTime };
+          return;
+        }
+        if (Math.abs(offsetX - outX) <= HIT_RADIUS) {
+          canvas.setPointerCapture(e.pointerId);
+          activeDragRef.current = { type: "out", clipId: clip.id };
+          outPointDragRef.current = { clipId: clip.id, time: clip.endTime };
+          return;
+        }
       }
     }
 
-    // Fall through to playhead scrub
+    // Fall through to playhead scrub (both rows)
     canvas.setPointerCapture(e.pointerId);
     isDraggingRef.current = true;
-    scrubTimeRef.current = pixelToTime(offsetX, duration, canvasWidth);
+    scrubTimeRef.current = pixelToTime(
+      offsetX,
+      duration,
+      canvasWidth,
+      LABEL_WIDTH,
+    );
   };
 
   // User moves the cursor on the timeline bar
@@ -60,7 +109,7 @@ export default function Timeline({ videoRef }: TimelineProps) {
     const { duration } = usePlaybackStore.getState();
 
     if (activeDragRef.current) {
-      const time = pixelToTime(offsetX, duration, canvasWidth);
+      const time = pixelToTime(offsetX, duration, canvasWidth, LABEL_WIDTH);
       const { type, clipId } = activeDragRef.current;
       if (type === "in") {
         inPointDragRef.current = { clipId, time };
@@ -71,7 +120,12 @@ export default function Timeline({ videoRef }: TimelineProps) {
     }
 
     if (!isDraggingRef.current) return;
-    scrubTimeRef.current = pixelToTime(offsetX, duration, canvasWidth);
+    scrubTimeRef.current = pixelToTime(
+      offsetX,
+      duration,
+      canvasWidth,
+      LABEL_WIDTH,
+    );
   };
 
   // User releases the cursor
@@ -82,7 +136,9 @@ export default function Timeline({ videoRef }: TimelineProps) {
         useClipsStore.getState().setTrimIn(clipId, inPointDragRef.current.time);
         inPointDragRef.current = null;
       } else if (type === "out" && outPointDragRef.current) {
-        useClipsStore.getState().setTrimOut(clipId, outPointDragRef.current.time);
+        useClipsStore
+          .getState()
+          .setTrimOut(clipId, outPointDragRef.current.time);
         outPointDragRef.current = null;
       }
       activeDragRef.current = null;
@@ -105,7 +161,9 @@ export default function Timeline({ videoRef }: TimelineProps) {
         useClipsStore.getState().setTrimIn(clipId, inPointDragRef.current.time);
         inPointDragRef.current = null;
       } else if (type === "out" && outPointDragRef.current) {
-        useClipsStore.getState().setTrimOut(clipId, outPointDragRef.current.time);
+        useClipsStore
+          .getState()
+          .setTrimOut(clipId, outPointDragRef.current.time);
         outPointDragRef.current = null;
       }
       activeDragRef.current = null;

@@ -103,14 +103,40 @@ export default function App() {
           </div>
           {/* Audio track label row */}
           <div
-            className="flex items-center px-2 text-xs select-none"
+            className="flex flex-col justify-center px-2 text-xs select-none gap-0.5"
             style={{ height: AUDIO_ROW_HEIGHT }}
             data-testid="audio-label-row"
           >
             {extractionStatus === "loading" ? (
               <span className="text-gray-500 animate-pulse">Audio…</span>
             ) : audioTrack ? (
-              <span className="text-gray-400">{audioTrack.label}</span>
+              <>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400 truncate">{audioTrack.label}</span>
+                  <button
+                    data-testid="mute-btn"
+                    onClick={() =>
+                      useTracksStore.getState().setMuted("audio-0", !audioTrack.muted)
+                    }
+                    className="text-gray-400 hover:text-white leading-none"
+                    title={audioTrack.muted ? "Unmute" : "Mute"}
+                  >
+                    {audioTrack.muted ? "🔇" : "🔊"}
+                  </button>
+                </div>
+                <input
+                  data-testid="volume-slider"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={audioTrack.volume}
+                  onChange={(e) =>
+                    useTracksStore.getState().setVolume("audio-0", Number(e.target.value))
+                  }
+                  className="w-full h-1 accent-indigo-400"
+                />
+              </>
             ) : (
               <span className="text-gray-600">No audio</span>
             )}

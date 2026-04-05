@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { createRef } from 'react'
 import VideoPlayer from '../VideoPlayer'
 import { usePlaybackStore } from '../../stores/playbackStore'
@@ -123,6 +123,63 @@ describe('VideoPlayer', () => {
     expect(usePlaybackStore.getState().isPlaying).toBe(true)
     fireEvent(video, new Event('pause'))
     expect(usePlaybackStore.getState().isPlaying).toBe(false)
+  })
+})
+
+describe('tracksStore → video element sync (muted / volume)', () => {
+  it('sets video.muted = true when audio track muted state changes to true', () => {
+    ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    const ref = createRef<HTMLVideoElement>()
+    render(<VideoPlayer videoRef={ref} />)
+
+    // Seed audio-0 track so the subscription has something to read
+    act(() => {
+      useTracksStore.getState().addTrack({ id: 'audio-0', type: 'audio', label: 'Audio', muted: false, volume: 1 })
+      useTracksStore.getState().setMuted('audio-0', true)
+    })
+
+    expect(ref.current?.muted).toBe(true)
+  })
+
+  it('sets video.volume when audio track volume changes', () => {
+    ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    const ref = createRef<HTMLVideoElement>()
+    render(<VideoPlayer videoRef={ref} />)
+
+    act(() => {
+      useTracksStore.getState().addTrack({ id: 'audio-0', type: 'audio', label: 'Audio', muted: false, volume: 1 })
+      useTracksStore.getState().setVolume('audio-0', 0.5)
+    })
+
+    expect(ref.current?.volume).toBe(0.5)
+  })
+
+  it('does not throw when tracksStore updates but videoRef.current is null', () => {
+    ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    // Render with a ref that has no attached DOM element
+    const ref = { current: null } as React.RefObject<HTMLVideoElement>
+    expect(() => {
+      render(<VideoPlayer videoRef={ref} />)
+      act(() => {
+        useTracksStore.getState().addTrack({ id: 'audio-0', type: 'audio', label: 'Audio', muted: false, volume: 1 })
+        useTracksStore.getState().setMuted('audio-0', true)
+      })
+    }).not.toThrow()
+  })
+
+  it('does not sync when tracksStore has no audio-0 track', () => {
+    ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    const ref = createRef<HTMLVideoElement>()
+    render(<VideoPlayer videoRef={ref} />)
+    const initialMuted = ref.current?.muted
+
+    act(() => {
+      // Only video-0 track, no audio-0
+      useTracksStore.getState().addTrack({ id: 'video-0', type: 'video', label: 'Video', muted: false, volume: 1 })
+    })
+
+    // video.muted should be unchanged
+    expect(ref.current?.muted).toBe(initialMuted)
   })
 })
 
