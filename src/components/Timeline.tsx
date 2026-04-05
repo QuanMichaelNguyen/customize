@@ -10,7 +10,7 @@ import { pixelToTime, timeToPixel } from "../utils/timelineGeometry";
 import { LABEL_WIDTH, getRowBands } from "../utils/laneGeometry";
 
 interface TimelineProps {
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 const HIT_RADIUS = 8;

@@ -14,7 +14,7 @@ import CropOverlay from "./CropOverlay";
 import TextOverlayLayer from "./TextOverlayLayer";
 
 interface VideoPlayerProps {
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 export default function VideoPlayer({ videoRef }: VideoPlayerProps) {

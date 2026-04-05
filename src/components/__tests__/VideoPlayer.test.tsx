@@ -58,21 +58,21 @@ beforeEach(() => {
 
 describe('VideoPlayer', () => {
   it('renders a file input and a video element', () => {
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     expect(document.querySelector('input[type="file"]')).toBeTruthy()
     expect(document.querySelector('video')).toBeTruthy()
   })
 
   it('hides the video element when no video is loaded', () => {
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const video = document.querySelector('video')!
     expect(video.classList.contains('hidden')).toBe(true)
   })
 
   it('calls video.play() when play button is clicked (hasVideo = true)', () => {
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     usePlaybackStore.getState().setVideoMetadata({ duration: 60, videoWidth: 1280, videoHeight: 720 })
     render(<VideoPlayer videoRef={ref} />)
     const btn = screen.getByRole('button', { name: /play/i })
@@ -81,7 +81,7 @@ describe('VideoPlayer', () => {
   })
 
   it('calls video.pause() when pause button is clicked while playing', () => {
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     usePlaybackStore.getState().setVideoMetadata({ duration: 60, videoWidth: 1280, videoHeight: 720 })
     usePlaybackStore.getState().setPlaying(true)
     render(<VideoPlayer videoRef={ref} />)
@@ -93,7 +93,7 @@ describe('VideoPlayer', () => {
   it('does not throw on AbortError from video.play()', async () => {
     const abortError = new DOMException('interrupted', 'AbortError')
     ;(HTMLVideoElement.prototype.play as ReturnType<typeof vi.fn>).mockRejectedValueOnce(abortError)
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     usePlaybackStore.getState().setVideoMetadata({ duration: 60, videoWidth: 1280, videoHeight: 720 })
     render(<VideoPlayer videoRef={ref} />)
     const btn = screen.getByRole('button', { name: /play/i })
@@ -101,7 +101,7 @@ describe('VideoPlayer', () => {
   })
 
   it('updates store via loadedmetadata event', () => {
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const video = document.querySelector('video')!
     Object.defineProperty(video, 'duration', { configurable: true, value: 90 })
@@ -116,7 +116,7 @@ describe('VideoPlayer', () => {
   })
 
   it('updates store isPlaying on play/pause DOM events', () => {
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const video = document.querySelector('video')!
     fireEvent(video, new Event('play'))
@@ -129,7 +129,7 @@ describe('VideoPlayer', () => {
 describe('tracksStore → video element sync (muted / volume)', () => {
   it('sets video.muted = true when audio track muted state changes to true', () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
 
     // Seed audio-0 track so the subscription has something to read
@@ -143,7 +143,7 @@ describe('tracksStore → video element sync (muted / volume)', () => {
 
   it('sets video.volume when audio track volume changes', () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
 
     act(() => {
@@ -157,7 +157,7 @@ describe('tracksStore → video element sync (muted / volume)', () => {
   it('does not throw when tracksStore updates but videoRef.current is null', () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
     // Render with a ref that has no attached DOM element
-    const ref = { current: null } as React.RefObject<HTMLVideoElement>
+    const ref = { current: null } as React.RefObject<HTMLVideoElement | null>
     expect(() => {
       render(<VideoPlayer videoRef={ref} />)
       act(() => {
@@ -169,7 +169,7 @@ describe('tracksStore → video element sync (muted / volume)', () => {
 
   it('does not sync when tracksStore has no audio-0 track', () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const initialMuted = ref.current?.muted
 
@@ -187,7 +187,7 @@ describe('handleFileChange — store reset and audio extraction', () => {
   it('resets clipsStore when a new file is loaded (pre-existing bug fix)', async () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
 
     // Seed clips so we can verify they're cleared
@@ -203,7 +203,7 @@ describe('handleFileChange — store reset and audio extraction', () => {
   it('resets cropStore and overlaysStore when a new file is loaded', async () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
 
     useCropStore.getState().toggleCropOverlay()
@@ -218,7 +218,7 @@ describe('handleFileChange — store reset and audio extraction', () => {
   it('seeds video-0 track in tracksStore immediately on file load', () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const input = document.querySelector('input[type="file"]')!
     fireFileChange(input, makeVideoFile())
@@ -231,7 +231,7 @@ describe('handleFileChange — store reset and audio extraction', () => {
     // Use a promise that never resolves so we can observe the loading state
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}))
 
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const input = document.querySelector('input[type="file"]')!
     fireFileChange(input, makeVideoFile())
@@ -247,7 +247,7 @@ describe('handleFileChange — store reset and audio extraction', () => {
     }
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(fakeWaveform)
 
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const input = document.querySelector('input[type="file"]')!
     fireFileChange(input, makeVideoFile())
@@ -263,7 +263,7 @@ describe('handleFileChange — store reset and audio extraction', () => {
   it('sets hasAudio to false and does not add audio-0 track when video has no audio', async () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const input = document.querySelector('input[type="file"]')!
     fireFileChange(input, makeVideoFile())
@@ -277,7 +277,7 @@ describe('handleFileChange — store reset and audio extraction', () => {
   it('sets audioStore to error when extractWaveform rejects', async () => {
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('decode failed'))
 
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const input = document.querySelector('input[type="file"]')!
     fireFileChange(input, makeVideoFile())
@@ -295,7 +295,7 @@ describe('handleFileChange — store reset and audio extraction', () => {
     const fakeWaveform = { peaks: new Float32Array(10), mins: new Float32Array(10), length: 10 }
     ;(extractWaveform as ReturnType<typeof vi.fn>).mockResolvedValue(fakeWaveform)
 
-    const ref = createRef<HTMLVideoElement>()
+    const ref = createRef<HTMLVideoElement | null>()
     render(<VideoPlayer videoRef={ref} />)
     const input = document.querySelector('input[type="file"]')!
 

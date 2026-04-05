@@ -89,14 +89,14 @@ function makeCanvasRef(width = 296, height = VIDEO_ROW_HEIGHT + AUDIO_ROW_HEIGHT
     textBaseline: 'alphabetic' as CanvasTextBaseline,
   }
   vi.spyOn(canvas, 'getContext').mockReturnValue(ctx as unknown as CanvasRenderingContext2D)
-  const ref = { current: canvas } as React.RefObject<HTMLCanvasElement>
+  const ref = { current: canvas } as React.RefObject<HTMLCanvasElement | null>
   return { ref, ctx }
 }
 
 function makeVideoRef(currentTime = 0) {
   const video = document.createElement('video')
   Object.defineProperty(video, 'currentTime', { configurable: true, value: currentTime })
-  const ref = { current: video } as React.RefObject<HTMLVideoElement>
+  const ref = { current: video } as React.RefObject<HTMLVideoElement | null>
   return ref
 }
 
@@ -105,8 +105,8 @@ function makeWaveformRef(data: WaveformData | null = null) {
 }
 
 function renderRenderer(
-  canvasRef: React.RefObject<HTMLCanvasElement>,
-  videoRef: React.RefObject<HTMLVideoElement>,
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  videoRef: React.RefObject<HTMLVideoElement | null>,
   opts: {
     isDraggingRef?: React.MutableRefObject<boolean>
     scrubTimeRef?: React.MutableRefObject<number>

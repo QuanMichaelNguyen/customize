@@ -17,7 +17,7 @@ function makeVideoRef(currentTime = 0) {
     get: () => _currentTime,
     set: (v: number) => { _currentTime = v },
   })
-  return { current: video } as React.RefObject<HTMLVideoElement>
+  return { current: video } as React.RefObject<HTMLVideoElement | null>
 }
 
 // jsdom: offsetX/offsetY and pointerId are not settable via EventInit, so use defineProperty.
