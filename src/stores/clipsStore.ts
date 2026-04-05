@@ -1,3 +1,6 @@
+/* 
+clip segments + trim/split/default clip logic.
+*/
 import { create } from 'zustand'
 import type { ClipSegment } from '../types/editor'
 

@@ -1,3 +1,6 @@
+/* 
+Crop region/aspect preset/overlay visibility state.
+*/
 import { create } from 'zustand'
 import type { CropRegion, AspectRatioPreset } from '../types/editor'
 

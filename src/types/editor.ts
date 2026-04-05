@@ -1,3 +1,7 @@
+/*
+Types related to video metadata, clip segments, cropping, 
+text overlays, tracks, and waveform data for the video editor.
+*/
 export interface VideoMetadata {
   duration: number
   videoWidth: number

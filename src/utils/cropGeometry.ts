@@ -1,15 +1,14 @@
+/**
+ * Computes the displayed video rectangle within a container, accounting for
+ * object-fit: contain letterboxing/pillarboxing.
+ * Returns coordinates in container-relative CSS pixels.
+ */
 export interface VideoDisplayRect {
   left: number
   top: number
   width: number
   height: number
 }
-
-/**
- * Computes the displayed video rectangle within a container, accounting for
- * object-fit: contain letterboxing/pillarboxing.
- * Returns coordinates in container-relative CSS pixels.
- */
 export function getVideoDisplayRect(
   containerWidth: number,
   containerHeight: number,

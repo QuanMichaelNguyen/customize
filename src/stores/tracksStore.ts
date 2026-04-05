@@ -1,9 +1,9 @@
+/*
+Track metadata (id, type, label, mute/volume).
+*/
+
 import { create } from 'zustand'
 import type { Track } from '../types/editor'
-
-// NOTE: Phase 4 mute/volume operates directly on HTMLVideoElement.muted / .volume.
-// If independent audio file import is added in a future phase, this store will need
-// GainNode routing per track rather than the current single-element approach.
 
 interface TracksState {
   tracks: Track[]

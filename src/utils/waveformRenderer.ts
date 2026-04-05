@@ -1,5 +1,3 @@
-import type { WaveformData } from '../types/editor'
-
 /**
  * Builds an offscreen HTMLCanvasElement pre-drawn with the waveform peak/min bars.
  *
@@ -11,6 +9,9 @@ import type { WaveformData } from '../types/editor'
  * - Column alignment: x + 0.5 for crisp 1px vertical lines at any pixel density.
  * - Center-mirrored: peak goes above center, min goes below.
  */
+import type { WaveformData } from '../types/editor'
+
+
 export function buildWaveformCache(
   waveformData: WaveformData,
   width: number,

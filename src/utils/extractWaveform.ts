@@ -1,3 +1,12 @@
+/**
+ * Decodes the audio stream from a video File and returns downsampled peak/min arrays.
+ * Uses OfflineAudioContext (not AudioContext) to avoid autoplay policy enforcement.
+ * Returns null if the file has no decodable audio track.
+ *
+ * @param file         The video File to decode audio from.
+ * @param targetSamples Number of peak/min samples to produce. Use a fixed high value (e.g. 2000)
+ *                     and scale to canvas width at draw time — avoids re-extraction on resize.
+ */
 import type { WaveformData } from '../types/editor'
 
 /**
@@ -45,15 +54,7 @@ export function computePeaksFromBuffer(
   return { peaks, mins, length: safeTarget }
 }
 
-/**
- * Decodes the audio stream from a video File and returns downsampled peak/min arrays.
- * Uses OfflineAudioContext (not AudioContext) to avoid autoplay policy enforcement.
- * Returns null if the file has no decodable audio track.
- *
- * @param file         The video File to decode audio from.
- * @param targetSamples Number of peak/min samples to produce. Use a fixed high value (e.g. 2000)
- *                     and scale to canvas width at draw time — avoids re-extraction on resize.
- */
+
 export async function extractWaveform(
   file: File,
   targetSamples: number,

@@ -1,13 +1,12 @@
-/** Width of the DOM label column to the left of the canvas (px). */
+/*
+Constants for timeline row heights + band layout for video/audio rows.
+*/
 export const LABEL_WIDTH = 96
 
-/** Height of the video track row (px). */
 export const VIDEO_ROW_HEIGHT = 48
 
-/** Height of the audio track row (px). */
 export const AUDIO_ROW_HEIGHT = 48
 
-/** Total height of the timeline strip (px). Must equal VIDEO_ROW_HEIGHT + AUDIO_ROW_HEIGHT. */
 export const TIMELINE_HEIGHT = VIDEO_ROW_HEIGHT + AUDIO_ROW_HEIGHT
 
 /**

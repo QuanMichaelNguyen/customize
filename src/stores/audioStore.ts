@@ -1,3 +1,6 @@
+/*
+Waveform extraction status + data + audio availability flags.
+*/
 import { create } from 'zustand'
 import type { WaveformData } from '../types/editor'
 
