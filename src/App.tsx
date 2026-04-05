@@ -5,6 +5,9 @@ import OverlayStylePanel from "./components/OverlayStylePanel";
 import { usePlaybackStore } from "./stores/playbackStore";
 import { useClipsStore } from "./stores/clipsStore";
 import { useOverlaysStore } from "./stores/overlaysStore";
+import { useTracksStore } from "./stores/tracksStore";
+import { useAudioStore } from "./stores/audioStore";
+import { LABEL_WIDTH, VIDEO_ROW_HEIGHT, AUDIO_ROW_HEIGHT } from "./utils/laneGeometry";
 
 export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -13,6 +16,10 @@ export default function App() {
   const duration = usePlaybackStore((s) => s.duration);
   const clips = useClipsStore((s) => s.clips);
   const selectedOverlayId = useOverlaysStore((s) => s.selectedOverlayId);
+  const tracks = useTracksStore((s) => s.tracks);
+  const extractionStatus = useAudioStore((s) => s.extractionStatus);
+  const videoTrack = tracks.find((t) => t.id === "video-0");
+  const audioTrack = tracks.find((t) => t.id === "audio-0");
 
   const activeClip = clips.find(
     (c) => currentTime >= c.startTime && currentTime <= c.endTime,
@@ -80,9 +87,66 @@ export default function App() {
       {/* Overlay style panel — shown when an overlay is selected */}
       {hasVideo && selectedOverlayId && <OverlayStylePanel />}
 
-      {/* Timeline strip */}
-      <div className="h-20 bg-gray-800 border-t border-gray-700 px-2 py-3">
-        <Timeline videoRef={videoRef} />
+      {/* Timeline strip — two rows: video track + audio track */}
+      <div
+        className="flex-shrink-0 bg-gray-800 border-t border-gray-700 flex min-h-0"
+        style={{ height: VIDEO_ROW_HEIGHT + AUDIO_ROW_HEIGHT }}
+      >
+        {/* DOM label column — per-track labels and controls (filled by Unit 7) */}
+        <div className="flex flex-col flex-shrink-0" style={{ width: LABEL_WIDTH }}>
+          {/* Video track label row */}
+          <div
+            className="flex items-center px-2 border-b border-gray-700 text-xs text-gray-400 select-none"
+            style={{ height: VIDEO_ROW_HEIGHT }}
+          >
+            {videoTrack ? videoTrack.label : "Video"}
+          </div>
+          {/* Audio track label row */}
+          <div
+            className="flex flex-col justify-center px-2 text-xs select-none gap-0.5"
+            style={{ height: AUDIO_ROW_HEIGHT }}
+            data-testid="audio-label-row"
+          >
+            {extractionStatus === "loading" ? (
+              <span className="text-gray-500 animate-pulse">Audio…</span>
+            ) : audioTrack ? (
+              <>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400 truncate">{audioTrack.label}</span>
+                  <button
+                    data-testid="mute-btn"
+                    onClick={() =>
+                      useTracksStore.getState().setMuted("audio-0", !audioTrack.muted)
+                    }
+                    className="text-gray-400 hover:text-white leading-none"
+                    title={audioTrack.muted ? "Unmute" : "Mute"}
+                  >
+                    {audioTrack.muted ? "🔇" : "🔊"}
+                  </button>
+                </div>
+                <input
+                  data-testid="volume-slider"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={audioTrack.volume}
+                  onChange={(e) =>
+                    useTracksStore.getState().setVolume("audio-0", Number(e.target.value))
+                  }
+                  className="w-full h-1 accent-indigo-400"
+                />
+              </>
+            ) : (
+              <span className="text-gray-600">No audio</span>
+            )}
+          </div>
+        </div>
+
+        {/* Canvas area — occupies remaining width */}
+        <div className="flex-1 min-w-0">
+          <Timeline videoRef={videoRef} />
+        </div>
       </div>
     </div>
   );

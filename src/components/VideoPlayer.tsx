@@ -1,13 +1,20 @@
+/* 
+File load, video metadata/play-pause sync, state resets, 
+waveform extraction kickoff, crop/text overlay layer host.
+*/
 import { useEffect, useRef } from "react";
 import { usePlaybackStore } from "../stores/playbackStore";
 import { useClipsStore } from "../stores/clipsStore";
 import { useCropStore } from "../stores/cropStore";
 import { useOverlaysStore } from "../stores/overlaysStore";
+import { useTracksStore } from "../stores/tracksStore";
+import { useAudioStore } from "../stores/audioStore";
+import { extractWaveform } from "../utils/extractWaveform";
 import CropOverlay from "./CropOverlay";
 import TextOverlayLayer from "./TextOverlayLayer";
 
 interface VideoPlayerProps {
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
@@ -36,17 +43,34 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
 
     const handlePlay = () => setPlaying(true);
     const handlePause = () => setPlaying(false);
+    const handleTimeUpdate = () =>
+      usePlaybackStore.getState().setCurrentTime(video.currentTime);
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
+    video.addEventListener("timeupdate", handleTimeUpdate);
 
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
     };
   }, [videoRef, setVideoMetadata, setPlaying, initDefaultClip]); // if any of these dependency changed, useEffect got trigger again
+
+  // Sync tracksStore audio track muted/volume to the video element imperatively.
+  // We cannot use JSX `muted` attribute — React silently ignores it on re-renders (React #6544).
+  useEffect(() => {
+    return useTracksStore.subscribe((state) => {
+      const video = videoRef.current;
+      if (!video) return;
+      const audioTrack = state.tracks.find((t) => t.id === "audio-0");
+      if (!audioTrack) return;
+      video.muted = audioTrack.muted;
+      video.volume = audioTrack.volume;
+    });
+  }, [videoRef]);
 
   useEffect(() => {
     return () => {
@@ -61,6 +85,20 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     const file = e.target.files?.[0];
     if (!file || !videoRef.current) return;
 
+    useClipsStore.getState().reset();
+    useCropStore.getState().reset();
+    useOverlaysStore.getState().reset();
+    useTracksStore.getState().reset();
+    useAudioStore.getState().reset();
+
+    useTracksStore.getState().addTrack({
+      id: "video-0",
+      type: "video",
+      label: "Video",
+      muted: false,
+      volume: 1,
+    });
+
     // Free the old memory by revoking the old URL
     if (blobUrlRef.current) {
       URL.revokeObjectURL(blobUrlRef.current);
@@ -68,7 +106,25 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     const url = URL.createObjectURL(file);
     blobUrlRef.current = url;
     videoRef.current.src = url;
-    useOverlaysStore.getState().reset();
+
+    // Kick off async waveform extraction
+    useAudioStore.getState().setLoading();
+    extractWaveform(file, 2000)
+      .then((data) => {
+        useAudioStore.getState().setWaveform(data);
+        if (data !== null) {
+          useTracksStore.getState().addTrack({
+            id: "audio-0",
+            type: "audio",
+            label: "Audio",
+            muted: false,
+            volume: 1,
+          });
+        }
+      })
+      .catch(() => {
+        useAudioStore.getState().setError();
+      });
   };
 
   const handlePlayPause = () => {
@@ -93,7 +149,10 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
         onChange={handleFileChange}
         className="text-sm text-gray-300"
       />
-      <div ref={containerRef} className="relative flex-1 min-h-0 w-full overflow-hidden">
+      <div
+        ref={containerRef}
+        className="relative flex-1 min-h-0 w-full overflow-hidden"
+      >
         <video
           ref={videoRef}
           className={`w-full h-full object-contain ${!hasVideo ? "hidden" : ""}`}
@@ -101,9 +160,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
         {hasVideo && isCropOverlayOpen && (
           <CropOverlay containerRef={containerRef} />
         )}
-        {hasVideo && (
-          <TextOverlayLayer containerRef={containerRef} />
-        )}
+        {hasVideo && <TextOverlayLayer containerRef={containerRef} />}
       </div>
       {hasVideo && (
         <div className="flex gap-2">

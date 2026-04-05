@@ -1,3 +1,6 @@
+/*
+Text overlay CRUD + selected overlay state.
+*/
 import { create } from 'zustand'
 import type { TextOverlay } from '../types/editor'
 

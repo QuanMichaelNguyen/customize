@@ -1,3 +1,6 @@
+/*
+Playback time/duration/play state/video metadata.
+*/
 import { create } from 'zustand'
 import type { VideoMetadata } from '../types/editor'
 
