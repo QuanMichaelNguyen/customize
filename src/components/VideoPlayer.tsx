@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { usePlaybackStore } from "../stores/playbackStore";
 import { useClipsStore } from "../stores/clipsStore";
+import { useCropStore } from "../stores/cropStore";
+import CropOverlay from "./CropOverlay";
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -8,11 +10,14 @@ interface VideoPlayerProps {
 
 export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
   const blobUrlRef = useRef<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
   const hasVideo = usePlaybackStore((s) => s.hasVideo);
   const setVideoMetadata = usePlaybackStore((s) => s.setVideoMetadata);
   const setPlaying = usePlaybackStore((s) => s.setPlaying);
   const initDefaultClip = useClipsStore((s) => s.initDefaultClip);
+  const isCropOverlayOpen = useCropStore((s) => s.isCropOverlayOpen);
+  const toggleCropOverlay = useCropStore((s) => s.toggleCropOverlay);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -85,19 +90,34 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
         onChange={handleFileChange}
         className="text-sm text-gray-300"
       />
-      <div className="flex-1 min-h-0 w-full overflow-hidden">
+      <div ref={containerRef} className="relative flex-1 min-h-0 w-full overflow-hidden">
         <video
           ref={videoRef}
           className={`w-full h-full object-contain ${!hasVideo ? "hidden" : ""}`}
         />
+        {hasVideo && isCropOverlayOpen && (
+          <CropOverlay containerRef={containerRef} />
+        )}
       </div>
       {hasVideo && (
-        <button
-          onClick={handlePlayPause}
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-        >
-          {isPlaying ? "Pause" : "Play"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handlePlayPause}
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            {isPlaying ? "Pause" : "Play"}
+          </button>
+          <button
+            onClick={toggleCropOverlay}
+            className={`px-4 py-2 rounded ${
+              isCropOverlayOpen
+                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                : "bg-gray-600 text-white hover:bg-gray-500"
+            }`}
+          >
+            Crop
+          </button>
+        </div>
       )}
     </div>
   );
