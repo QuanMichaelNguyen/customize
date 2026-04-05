@@ -43,15 +43,19 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
 
     const handlePlay = () => setPlaying(true);
     const handlePause = () => setPlaying(false);
+    const handleTimeUpdate = () =>
+      usePlaybackStore.getState().setCurrentTime(video.currentTime);
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
+    video.addEventListener("timeupdate", handleTimeUpdate);
 
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
     };
   }, [videoRef, setVideoMetadata, setPlaying, initDefaultClip]); // if any of these dependency changed, useEffect got trigger again
 
