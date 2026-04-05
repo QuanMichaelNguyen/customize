@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { usePlaybackStore } from "../stores/playbackStore";
+import { useClipsStore } from "../stores/clipsStore";
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -11,6 +12,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
   const hasVideo = usePlaybackStore((s) => s.hasVideo);
   const setVideoMetadata = usePlaybackStore((s) => s.setVideoMetadata);
   const setPlaying = usePlaybackStore((s) => s.setPlaying);
+  const initDefaultClip = useClipsStore((s) => s.initDefaultClip);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -22,6 +24,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
         videoWidth: video.videoWidth,
         videoHeight: video.videoHeight,
       });
+      initDefaultClip(video.duration);
     };
 
     const handlePlay = () => setPlaying(true);
@@ -36,7 +39,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
     };
-  }, [videoRef, setVideoMetadata, setPlaying]); // if any of these dependency changed, useEffect got trigger again
+  }, [videoRef, setVideoMetadata, setPlaying, initDefaultClip]); // if any of these dependency changed, useEffect got trigger again
 
   useEffect(() => {
     return () => {
