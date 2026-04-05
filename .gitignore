@@ -1,5 +1,4 @@
 CLAUDE.md
 .claude/
-.docs/
+docs/
 node_modules/
-package-lock.json
