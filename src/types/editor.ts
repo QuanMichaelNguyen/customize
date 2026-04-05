@@ -30,3 +30,17 @@ export interface TextOverlay {
   color: string
   background: string
 }
+
+export interface Track {
+  id: string
+  type: 'video' | 'audio'
+  label: string
+  muted: boolean
+  volume: number
+}
+
+export interface WaveformData {
+  peaks: Float32Array
+  mins: Float32Array
+  length: number
+}
