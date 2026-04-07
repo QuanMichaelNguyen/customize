@@ -15,6 +15,9 @@ interface ClipsActions {
   setTrimIn: (id: string, time: number) => void
   setTrimOut: (id: string, time: number) => void
   splitClip: (id: string, atTime: number) => void
+  // Restores a previously captured snapshot. Used by historyStore for undo/redo.
+  // The snapshot represents already-validated state so no per-clip guards are applied.
+  restoreSnapshot: (clips: ClipSegment[]) => void
   reset: () => void
 }
 
@@ -56,6 +59,8 @@ export const useClipsStore = create<ClipsState & ClipsActions>()((set, get) => (
         return { ...clip, endTime: time }
       }),
     })),
+
+  restoreSnapshot: (clips) => set({ clips }),
 
   splitClip: (id, atTime) => {
     const clip = get().clips.find((c) => c.id === id)
