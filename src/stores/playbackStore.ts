@@ -8,6 +8,7 @@ interface PlaybackState {
   currentTime: number
   duration: number
   isPlaying: boolean
+  playbackRate: number
   videoWidth: number
   videoHeight: number
   hasVideo: boolean
@@ -17,6 +18,7 @@ interface PlaybackActions {
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
   setPlaying: (playing: boolean) => void
+  setPlaybackRate: (rate: number) => void
   setVideoMetadata: (meta: VideoMetadata) => void
   reset: () => void
 }
@@ -25,6 +27,7 @@ const initialState: PlaybackState = {
   currentTime: 0,
   duration: 0,
   isPlaying: false,
+  playbackRate: 1,
   videoWidth: 0,
   videoHeight: 0,
   hasVideo: false,
@@ -43,6 +46,8 @@ export const usePlaybackStore = create<PlaybackState & PlaybackActions>()(
     setDuration: (duration) => set({ duration }),
 
     setPlaying: (isPlaying) => set({ isPlaying }),
+
+    setPlaybackRate: (rate) => set({ playbackRate: Math.max(0.1, Math.min(16, rate)) }),
 
     setVideoMetadata: ({ duration, videoWidth, videoHeight }) =>
       set({ duration, videoWidth, videoHeight, hasVideo: true, currentTime: 0, isPlaying: false }),

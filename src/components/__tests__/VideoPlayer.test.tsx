@@ -8,6 +8,7 @@ import { useCropStore } from '../../stores/cropStore'
 import { useOverlaysStore } from '../../stores/overlaysStore'
 import { useTracksStore } from '../../stores/tracksStore'
 import { useAudioStore } from '../../stores/audioStore'
+import { useHistoryStore } from '../../stores/historyStore'
 
 // jsdom does not implement these — set at module level so they persist across all tests
 // (vi.clearAllMocks() preserves implementations; only vi.resetAllMocks() would wipe them).
@@ -42,6 +43,7 @@ beforeEach(() => {
   useOverlaysStore.getState().reset()
   useTracksStore.getState().reset()
   useAudioStore.getState().reset()
+  useHistoryStore.getState().reset()
   vi.clearAllMocks()
 
   // Re-setup play/pause mocks after clearAllMocks so implementations persist
@@ -123,6 +125,74 @@ describe('VideoPlayer', () => {
     expect(usePlaybackStore.getState().isPlaying).toBe(true)
     fireEvent(video, new Event('pause'))
     expect(usePlaybackStore.getState().isPlaying).toBe(false)
+  })
+})
+
+describe('timeupdate throttle', () => {
+  it('calls setCurrentTime only once when two timeupdate events fire within 100ms', () => {
+    const ref = createRef<HTMLVideoElement | null>()
+    render(<VideoPlayer videoRef={ref} />)
+    const video = document.querySelector('video')!
+
+    let now = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+
+    now = 0
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 10 })
+    fireEvent(video, new Event('timeupdate'))
+
+    now = 50 // only 50ms later — below 100ms threshold
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 11 })
+    fireEvent(video, new Event('timeupdate'))
+
+    // Only the first update should have gone through
+    expect(usePlaybackStore.getState().currentTime).toBe(0) // clamped: duration=0
+    vi.restoreAllMocks()
+  })
+
+  it('calls setCurrentTime each time when timeupdate events are >100ms apart', () => {
+    const ref = createRef<HTMLVideoElement | null>()
+    usePlaybackStore.getState().setVideoMetadata({ duration: 120, videoWidth: 1920, videoHeight: 1080 })
+    render(<VideoPlayer videoRef={ref} />)
+    const video = document.querySelector('video')!
+
+    let now = 0
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+
+    now = 0
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 5 })
+    fireEvent(video, new Event('timeupdate'))
+    expect(usePlaybackStore.getState().currentTime).toBe(5)
+
+    now = 150 // 150ms later — above threshold
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 10 })
+    fireEvent(video, new Event('timeupdate'))
+    expect(usePlaybackStore.getState().currentTime).toBe(10)
+
+    vi.restoreAllMocks()
+  })
+})
+
+describe('playbackStore.playbackRate → video element sync', () => {
+  it('sets video.playbackRate when playbackStore playbackRate changes', () => {
+    const ref = createRef<HTMLVideoElement | null>()
+    render(<VideoPlayer videoRef={ref} />)
+
+    act(() => {
+      usePlaybackStore.getState().setPlaybackRate(2)
+    })
+
+    expect(ref.current?.playbackRate).toBe(2)
+  })
+
+  it('does not throw when videoRef.current is null during playbackRate change', () => {
+    const ref = { current: null } as React.RefObject<HTMLVideoElement | null>
+    expect(() => {
+      render(<VideoPlayer videoRef={ref} />)
+      act(() => {
+        usePlaybackStore.getState().setPlaybackRate(2)
+      })
+    }).not.toThrow()
   })
 })
 
@@ -288,6 +358,22 @@ describe('handleFileChange — store reset and audio extraction', () => {
 
     expect(useAudioStore.getState().extractionStatus).toBe('error')
     expect(useTracksStore.getState().tracks.some((t) => t.id === 'audio-0')).toBe(false)
+  })
+
+  it('clears historyStore when a new file is loaded', () => {
+    ;(extractWaveform as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}))
+
+    const ref = createRef<HTMLVideoElement | null>()
+    render(<VideoPlayer videoRef={ref} />)
+
+    useHistoryStore.getState().push([{ id: 'x', startTime: 0, endTime: 10, trackId: 'video-0' }])
+    expect(useHistoryStore.getState().past).toHaveLength(1)
+
+    const input = document.querySelector('input[type="file"]')!
+    fireFileChange(input, makeVideoFile())
+
+    expect(useHistoryStore.getState().past).toHaveLength(0)
+    expect(useHistoryStore.getState().future).toHaveLength(0)
   })
 
   it('resets tracksStore and audioStore before extracting when loading a second file', async () => {

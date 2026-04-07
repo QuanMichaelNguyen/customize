@@ -9,6 +9,7 @@ import { useCropStore } from "../stores/cropStore";
 import { useOverlaysStore } from "../stores/overlaysStore";
 import { useTracksStore } from "../stores/tracksStore";
 import { useAudioStore } from "../stores/audioStore";
+import { useHistoryStore } from "../stores/historyStore";
 import { extractWaveform } from "../utils/extractWaveform";
 import CropOverlay from "./CropOverlay";
 import TextOverlayLayer from "./TextOverlayLayer";
@@ -43,8 +44,14 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
 
     const handlePlay = () => setPlaying(true);
     const handlePause = () => setPlaying(false);
-    const handleTimeUpdate = () =>
+
+    let lastStoreUpdate = -Infinity;
+    const handleTimeUpdate = () => {
+      const now = performance.now();
+      if (now - lastStoreUpdate < 100) return;
+      lastStoreUpdate = now;
       usePlaybackStore.getState().setCurrentTime(video.currentTime);
+    };
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("play", handlePlay);
@@ -72,6 +79,15 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     });
   }, [videoRef]);
 
+  // Sync playbackStore.playbackRate to the video element imperatively.
+  useEffect(() => {
+    return usePlaybackStore.subscribe((state) => {
+      const video = videoRef.current;
+      if (!video) return;
+      video.playbackRate = state.playbackRate;
+    });
+  }, [videoRef]);
+
   useEffect(() => {
     return () => {
       if (blobUrlRef.current) {
@@ -85,6 +101,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     const file = e.target.files?.[0];
     if (!file || !videoRef.current) return;
 
+    useHistoryStore.getState().clear();
     useClipsStore.getState().reset();
     useCropStore.getState().reset();
     useOverlaysStore.getState().reset();

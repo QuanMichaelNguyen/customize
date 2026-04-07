@@ -8,6 +8,7 @@ import { useOverlaysStore } from "./stores/overlaysStore";
 import { useTracksStore } from "./stores/tracksStore";
 import { useAudioStore } from "./stores/audioStore";
 import { LABEL_WIDTH, VIDEO_ROW_HEIGHT, AUDIO_ROW_HEIGHT } from "./utils/laneGeometry";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -20,6 +21,8 @@ export default function App() {
   const extractionStatus = useAudioStore((s) => s.extractionStatus);
   const videoTrack = tracks.find((t) => t.id === "video-0");
   const audioTrack = tracks.find((t) => t.id === "audio-0");
+
+  useKeyboardShortcuts(videoRef);
 
   const activeClip = clips.find(
     (c) => currentTime >= c.startTime && currentTime <= c.endTime,
