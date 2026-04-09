@@ -10,6 +10,7 @@ This triggers a fresh CDN fetch (~25 MB) on the next export — a known UX trade
 import { useRef, useEffect, useCallback } from 'react'
 import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import robotoFontUrl from '../assets/Roboto-Regular.ttf'
 
 import { useExportStore } from '../stores/exportStore'
 import { useClipsStore } from '../stores/clipsStore'
@@ -22,19 +23,23 @@ import { validateExportInputs, buildFilterComplex } from '../utils/exportPipelin
 // Single-threaded core — no COOP/COEP required at runtime.
 // Switch to @ffmpeg/core-mt for multi-threaded (faster) encoding.
 const FFMPEG_CORE_BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm'
-const FONT_PUBLIC_PATH = '/fonts/Roboto-Regular.ttf'
 const FONT_MEMFS_NAME = 'Roboto-Regular.ttf'
 
 export function useFFmpegExport() {
   const ffmpegRef = useRef<FFmpeg | null>(null)
   const loadedRef = useRef(false)
   const progressHandlerRef = useRef<((e: { progress: number }) => void) | null>(null)
+  const logHandlerRef = useRef<((e: { message: string }) => void) | null>(null)
+  const logBufferRef = useRef<string[]>([])
 
   // Clean up on hook unmount
   useEffect(() => {
     return () => {
       if (progressHandlerRef.current && ffmpegRef.current) {
         ffmpegRef.current.off('progress', progressHandlerRef.current)
+      }
+      if (logHandlerRef.current && ffmpegRef.current) {
+        ffmpegRef.current.off('log', logHandlerRef.current)
       }
       // Do not terminate on unmount — let the export finish if ongoing.
       // Cancel is explicit via cancelExport().
@@ -79,6 +84,15 @@ export function useFFmpegExport() {
         progressHandlerRef.current = handler
         ffmpegRef.current.on('progress', handler)
 
+        // Wire up log listener to capture ffmpeg stderr for error diagnostics
+        const logHandler = ({ message }: { message: string }) => {
+          logBufferRef.current.push(message)
+          // Keep only the last 50 lines to avoid unbounded growth
+          if (logBufferRef.current.length > 50) logBufferRef.current.shift()
+        }
+        logHandlerRef.current = logHandler
+        ffmpegRef.current.on('log', logHandler)
+
         try {
           await ffmpegRef.current.load({
             coreURL: await toBlobURL(`${FFMPEG_CORE_BASE}/ffmpeg-core.js`, 'text/javascript'),
@@ -92,12 +106,25 @@ export function useFFmpegExport() {
           )
         }
 
-        // Load font into MEMFS for drawtext filter
+        // Load font into MEMFS for drawtext filter.
+        // Fetch via the Vite-processed asset URL (bundled, hashed) so we always
+        // get the real binary — never a 404 HTML page.
         try {
-          const fontData = await fetchFile(FONT_PUBLIC_PATH)
-          await ffmpegRef.current.writeFile(FONT_MEMFS_NAME, fontData)
-        } catch {
-          throw new Error('Failed to load font for text overlays. Export aborted.')
+          const fontResp = await fetch(robotoFontUrl)
+          if (!fontResp.ok) throw new Error(`HTTP ${fontResp.status}`)
+          const fontBytes = new Uint8Array(await fontResp.arrayBuffer())
+          // Validate TTF magic bytes (0x00010000 or 'true' or 'OTTO')
+          const magic = (fontBytes[0] << 24) | (fontBytes[1] << 16) | (fontBytes[2] << 8) | fontBytes[3]
+          if (magic !== 0x00010000 && magic !== 0x74727565 && magic !== 0x4F54544F) {
+            throw new Error('font file is not a valid TTF/OTF')
+          }
+          await ffmpegRef.current.writeFile(FONT_MEMFS_NAME, fontBytes)
+        } catch (fontErr) {
+          loadedRef.current = false
+          ffmpegRef.current = null
+          throw new Error(
+            `Failed to load font for text overlays. ${fontErr instanceof Error ? fontErr.message : String(fontErr)}`
+          )
         }
 
         loadedRef.current = true
@@ -142,7 +169,17 @@ export function useFFmpegExport() {
         ]
       }
 
-      await ffmpeg.exec(execArgs)
+      // Reset log buffer before each exec so error messages are from this run
+      logBufferRef.current = []
+
+      const exitCode = await ffmpeg.exec(execArgs)
+      if (exitCode !== 0) {
+        // Include the last few log lines so the error is diagnosable
+        const lastLogs = logBufferRef.current.slice(-10).join('\n')
+        throw new Error(
+          `FFmpeg exited with code ${exitCode}.${lastLogs ? `\n\nDetails:\n${lastLogs}` : ''}`
+        )
+      }
 
       // Read result and deliver as blob URL
       const data = await ffmpeg.readFile('output.mp4')
@@ -152,8 +189,19 @@ export function useFFmpegExport() {
 
       useExportStore.getState().setReady(outputUrl)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Export failed. Please try again.'
+      const msg =
+        err instanceof Error ? err.message
+        : typeof err === 'string' ? err
+        : 'Export failed. Please try again.'
       useExportStore.getState().setError(msg)
+      // Reset the ffmpeg instance so "Try again" re-initializes from scratch.
+      // This ensures a failed export (bad font, crashed exec, etc.) never leaves
+      // stale MEMFS data that poisons the next attempt.
+      if (ffmpegRef.current) {
+        ffmpegRef.current.terminate()
+        ffmpegRef.current = null
+      }
+      loadedRef.current = false
     } finally {
       // Clean up MEMFS files — wrapped in its own try/catch so a missing-file
       // error does not shadow the original export error
