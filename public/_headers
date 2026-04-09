@@ -1,0 +1,8 @@
+/*
+  # COOP/COEP headers enable SharedArrayBuffer, which is required for
+  # @ffmpeg/core-mt (multi-threaded ffmpeg.wasm). Currently using single-threaded
+  # @ffmpeg/core which does not require these headers, but setting them now
+  # enables a future multi-threaded upgrade without a deploy config change.
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: cross-origin

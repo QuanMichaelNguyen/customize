@@ -9,6 +9,8 @@ import { useCropStore } from "../stores/cropStore";
 import { useOverlaysStore } from "../stores/overlaysStore";
 import { useTracksStore } from "../stores/tracksStore";
 import { useAudioStore } from "../stores/audioStore";
+import { useSourceStore } from "../stores/sourceStore";
+import { useExportStore } from "../stores/exportStore";
 import { useHistoryStore } from "../stores/historyStore";
 import { extractWaveform } from "../utils/extractWaveform";
 import CropOverlay from "./CropOverlay";
@@ -107,6 +109,8 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     useOverlaysStore.getState().reset();
     useTracksStore.getState().reset();
     useAudioStore.getState().reset();
+    useSourceStore.getState().reset();
+    useExportStore.getState().resetExport();
 
     useTracksStore.getState().addTrack({
       id: "video-0",
@@ -123,6 +127,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     const url = URL.createObjectURL(file);
     blobUrlRef.current = url;
     videoRef.current.src = url;
+    useSourceStore.getState().setFile(file);
 
     // Kick off async waveform extraction
     useAudioStore.getState().setLoading();

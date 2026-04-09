@@ -48,3 +48,5 @@ export interface WaveformData {
   mins: Float32Array
   length: number
 }
+
+export type ExportStatus = 'idle' | 'loading' | 'ready' | 'error'
