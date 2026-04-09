@@ -145,7 +145,8 @@ export function useFFmpegExport() {
       await ffmpeg.exec(execArgs)
 
       // Read result and deliver as blob URL
-      const data = await ffmpeg.readFile('output.mp4') as Uint8Array
+      const data = await ffmpeg.readFile('output.mp4')
+      if (typeof data === 'string') throw new Error('Export failed: could not read output video data.')
       const blob = new Blob([data.buffer], { type: 'video/mp4' })
       const outputUrl = URL.createObjectURL(blob)
 
