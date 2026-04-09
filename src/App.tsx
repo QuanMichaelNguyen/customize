@@ -2,6 +2,7 @@ import { useRef } from "react";
 import VideoPlayer from "./components/VideoPlayer";
 import Timeline from "./components/Timeline";
 import OverlayStylePanel from "./components/OverlayStylePanel";
+import ExportPanel from "./components/ExportPanel";
 import { usePlaybackStore } from "./stores/playbackStore";
 import { useClipsStore } from "./stores/clipsStore";
 import { useOverlaysStore } from "./stores/overlaysStore";
@@ -69,21 +70,24 @@ export default function App() {
 
       {/* Editor controls bar */}
       {hasVideo && (
-        <div className="flex items-center justify-center gap-3 py-2 bg-gray-800 border-t border-gray-700">
-          <button
-            onClick={handleSplit}
-            disabled={splitDisabled}
-            className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Split
-          </button>
-          <button
-            data-testid="add-text-btn"
-            onClick={handleAddText}
-            className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700"
-          >
-            Add Text
-          </button>
+        <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-t border-gray-700">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSplit}
+              disabled={splitDisabled}
+              className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Split
+            </button>
+            <button
+              data-testid="add-text-btn"
+              onClick={handleAddText}
+              className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700"
+            >
+              Add Text
+            </button>
+          </div>
+          <ExportPanel />
         </div>
       )}
 
