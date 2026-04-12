@@ -13,6 +13,7 @@ import { useSourceStore } from "../stores/sourceStore";
 import { useExportStore } from "../stores/exportStore";
 import { useHistoryStore } from "../stores/historyStore";
 import { extractWaveform } from "../utils/extractWaveform";
+import { saveVideoFile, loadVideoFile } from "../utils/videoPersistence";
 import CropOverlay from "./CropOverlay";
 import TextOverlayLayer from "./TextOverlayLayer";
 
@@ -99,6 +100,57 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     };
   }, []);
 
+  // Restore persisted video from IndexedDB on mount (survives page reload).
+  // Tracks are persisted via localStorage (tracksStore), so we only add a track
+  // if it isn't already there — this preserves the user's mute/volume settings.
+  useEffect(() => {
+    loadVideoFile()
+      .then((file) => {
+        if (!file || !videoRef.current) return;
+
+        const url = URL.createObjectURL(file);
+        blobUrlRef.current = url;
+        videoRef.current.src = url;
+        useSourceStore.getState().setFile(file);
+
+        const existingTracks = useTracksStore.getState().tracks;
+        if (!existingTracks.some((t) => t.id === "video-0")) {
+          useTracksStore.getState().addTrack({
+            id: "video-0",
+            type: "video",
+            label: "Video",
+            muted: false,
+            volume: 1,
+          });
+        }
+
+        useAudioStore.getState().setLoading();
+        extractWaveform(file, 2000)
+          .then((data) => {
+            useAudioStore.getState().setWaveform(data);
+            if (data !== null) {
+              const tracks = useTracksStore.getState().tracks;
+              if (!tracks.some((t) => t.id === "audio-0")) {
+                useTracksStore.getState().addTrack({
+                  id: "audio-0",
+                  type: "audio",
+                  label: "Audio",
+                  muted: false,
+                  volume: 1,
+                });
+              }
+            }
+          })
+          .catch(() => {
+            useAudioStore.getState().setError();
+          });
+      })
+      .catch(() => {
+        // IDB unavailable or empty — start fresh, no action needed
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !videoRef.current) return;
@@ -128,6 +180,7 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     blobUrlRef.current = url;
     videoRef.current.src = url;
     useSourceStore.getState().setFile(file);
+    saveVideoFile(file).catch(() => {/* IDB unavailable, proceed without persistence */});
 
     // Kick off async waveform extraction
     useAudioStore.getState().setLoading();

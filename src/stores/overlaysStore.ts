@@ -2,6 +2,7 @@
 Text overlay CRUD + selected overlay state.
 */
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { TextOverlay } from '../types/editor'
 
 interface OverlaysState {
@@ -22,26 +23,35 @@ const initialState: OverlaysState = {
   selectedOverlayId: null,
 }
 
-export const useOverlaysStore = create<OverlaysState & OverlaysActions>()((set) => ({
-  ...initialState,
+export const useOverlaysStore = create<OverlaysState & OverlaysActions>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  addOverlay: (overlay) =>
-    set((state) => ({ overlays: [...state.overlays, overlay] })),
+      addOverlay: (overlay) =>
+        set((state) => ({ overlays: [...state.overlays, overlay] })),
 
-  removeOverlay: (id) =>
-    set((state) => ({
-      overlays: state.overlays.filter((o) => o.id !== id),
-      selectedOverlayId: state.selectedOverlayId === id ? null : state.selectedOverlayId,
-    })),
+      removeOverlay: (id) =>
+        set((state) => ({
+          overlays: state.overlays.filter((o) => o.id !== id),
+          selectedOverlayId: state.selectedOverlayId === id ? null : state.selectedOverlayId,
+        })),
 
-  updateOverlay: (id, partial) =>
-    set((state) => ({
-      overlays: state.overlays.map((o) =>
-        o.id === id ? { ...o, ...partial } : o
-      ),
-    })),
+      updateOverlay: (id, partial) =>
+        set((state) => ({
+          overlays: state.overlays.map((o) =>
+            o.id === id ? { ...o, ...partial } : o
+          ),
+        })),
 
-  setSelectedOverlay: (id) => set({ selectedOverlayId: id }),
+      setSelectedOverlay: (id) => set({ selectedOverlayId: id }),
 
-  reset: () => set({ ...initialState }),
-}))
+      reset: () => set({ ...initialState }),
+    }),
+    {
+      name: 'overlays-storage',
+      // Don't persist the selection — it's transient UI state
+      partialize: (state) => ({ overlays: state.overlays }),
+    },
+  ),
+)

@@ -1,7 +1,8 @@
-/* 
+/*
 Crop region/aspect preset/overlay visibility state.
 */
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { CropRegion, AspectRatioPreset } from '../types/editor'
 
 const RATIO_MAP: Record<Exclude<AspectRatioPreset, 'free'>, number> = {
@@ -45,21 +46,30 @@ const initialState: CropState = {
 
 const DEFAULT_REGION: CropRegion = { x: 0.1, y: 0.1, width: 0.8, height: 0.8 }
 
-export const useCropStore = create<CropState & CropActions>()((set, get) => ({
-  ...initialState,
+export const useCropStore = create<CropState & CropActions>()(
+  persist(
+    (set, get) => ({
+      ...initialState,
 
-  setCropRegion: (region) => set({ cropRegion: region }),
+      setCropRegion: (region) => set({ cropRegion: region }),
 
-  setAspectRatio: (preset) => {
-    const base = get().cropRegion ?? DEFAULT_REGION
-    const newRegion = applyAspectRatio(base, preset)
-    set({ aspectRatio: preset, cropRegion: newRegion })
-  },
+      setAspectRatio: (preset) => {
+        const base = get().cropRegion ?? DEFAULT_REGION
+        const newRegion = applyAspectRatio(base, preset)
+        set({ aspectRatio: preset, cropRegion: newRegion })
+      },
 
-  clearCrop: () => set({ cropRegion: null, aspectRatio: 'free' }),
+      clearCrop: () => set({ cropRegion: null, aspectRatio: 'free' }),
 
-  toggleCropOverlay: () =>
-    set((state) => ({ isCropOverlayOpen: !state.isCropOverlayOpen })),
+      toggleCropOverlay: () =>
+        set((state) => ({ isCropOverlayOpen: !state.isCropOverlayOpen })),
 
-  reset: () => set({ ...initialState }),
-}))
+      reset: () => set({ ...initialState }),
+    }),
+    {
+      name: 'crop-storage',
+      // isCropOverlayOpen is transient UI state — always start closed
+      partialize: (state) => ({ cropRegion: state.cropRegion, aspectRatio: state.aspectRatio }),
+    },
+  ),
+)
