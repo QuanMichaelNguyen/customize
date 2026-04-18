@@ -136,7 +136,10 @@ export function useFFmpegExport() {
       // filenames containing spaces, unicode, or special characters)
       await ffmpeg.writeFile('input.mp4', await fetchFile(file!))
 
-      // Build the filter_complex (or fast-path) args
+      // Build the filter_complex (or fast-path) args.
+      // clips already hold real video timestamps (clipsStore is never rebased by applyTrim).
+      // overlays are stored in display-space (0-based from trim start), which equals
+      // output-relative time after trim+setpts resets PTS to 0 — no adjustment needed.
       const { filterComplex, mapArgs, codecArgs, fastPathTrim } = buildFilterComplex(
         clips,
         cropRegion,

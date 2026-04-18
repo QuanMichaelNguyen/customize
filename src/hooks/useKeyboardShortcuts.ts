@@ -82,8 +82,9 @@ export function useKeyboardShortcuts(videoRef: React.RefObject<HTMLVideoElement 
           if (!video || !hasVideo) return
           e.preventDefault()
           video.pause()
-          video.currentTime = Math.max(0, video.currentTime - FRAME_DURATION)
-          usePlaybackStore.getState().setCurrentTime(video.currentTime)
+          const { trimOffset: trimOffL } = usePlaybackStore.getState()
+          video.currentTime = Math.max(trimOffL, video.currentTime - FRAME_DURATION)
+          usePlaybackStore.getState().setCurrentTime(video.currentTime - trimOffL)
           break
         }
 
@@ -91,8 +92,9 @@ export function useKeyboardShortcuts(videoRef: React.RefObject<HTMLVideoElement 
           if (!video || !hasVideo) return
           e.preventDefault()
           video.pause()
-          video.currentTime = Math.min(duration, video.currentTime + FRAME_DURATION)
-          usePlaybackStore.getState().setCurrentTime(video.currentTime)
+          const { trimOffset: trimOffR } = usePlaybackStore.getState()
+          video.currentTime = Math.min(trimOffR + duration, video.currentTime + FRAME_DURATION)
+          usePlaybackStore.getState().setCurrentTime(video.currentTime - trimOffR)
           break
         }
 

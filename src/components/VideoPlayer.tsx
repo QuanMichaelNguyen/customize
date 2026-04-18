@@ -37,12 +37,28 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
     if (!video) return;
 
     const handleLoadedMetadata = () => {
-      setVideoMetadata({
-        duration: video.duration,
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-      });
-      initDefaultClip(video.duration);
+      const existingClip = useClipsStore.getState().clips.find(
+        (c) => c.trackId === "video-0",
+      );
+      if (existingClip) {
+        // Restore trim state from the persisted clip.
+        // Pass real file duration so videoDuration is set correctly,
+        // then applyTrim overwrites duration with the trimmed range.
+        setVideoMetadata({
+          duration: video.duration,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+        });
+        usePlaybackStore.getState().applyTrim(existingClip.startTime, existingClip.endTime);
+        video.currentTime = existingClip.startTime;
+      } else {
+        setVideoMetadata({
+          duration: video.duration,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+        });
+        initDefaultClip(video.duration);
+      }
     };
 
     const handlePlay = () => setPlaying(true);
@@ -50,10 +66,29 @@ export default function VideoPlayer({ videoRef }: VideoPlayerProps) {
 
     let lastStoreUpdate = -Infinity;
     const handleTimeUpdate = () => {
+      // Enforce clip boundaries — always unthrottled
+      const { trimOffset } = usePlaybackStore.getState();
+      const { clips } = useClipsStore.getState();
+      const videoClip = clips.find((c) => c.trackId === "video-0");
+      if (videoClip) {
+        // clip.startTime/endTime are real video timestamps (not rebased)
+        if (video.currentTime >= videoClip.endTime) {
+          video.pause();
+          video.currentTime = videoClip.startTime;
+          usePlaybackStore.getState().setPlaying(false);
+          usePlaybackStore.getState().setCurrentTime(0);
+          lastStoreUpdate = -Infinity;
+          return;
+        }
+        if (video.currentTime < videoClip.startTime) {
+          video.currentTime = videoClip.startTime;
+        }
+      }
+
       const now = performance.now();
       if (now - lastStoreUpdate < 100) return;
       lastStoreUpdate = now;
-      usePlaybackStore.getState().setCurrentTime(video.currentTime);
+      usePlaybackStore.getState().setCurrentTime(video.currentTime - trimOffset);
     };
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);

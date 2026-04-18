@@ -63,19 +63,11 @@ export default function Timeline({ videoRef }: TimelineProps) {
 
     // Hit-test trim handles only in the video row
     if (inVideoRow) {
+      const { trimOffset } = usePlaybackStore.getState();
       for (const clip of clips) {
-        const inX = timeToPixel(
-          clip.startTime,
-          duration,
-          canvasWidth,
-          LABEL_WIDTH,
-        );
-        const outX = timeToPixel(
-          clip.endTime,
-          duration,
-          canvasWidth,
-          LABEL_WIDTH,
-        );
+        // Hit positions are in display space (real time − trimOffset)
+        const inX = timeToPixel(clip.startTime - trimOffset, duration, canvasWidth, LABEL_WIDTH);
+        const outX = timeToPixel(clip.endTime - trimOffset, duration, canvasWidth, LABEL_WIDTH);
 
         if (Math.abs(offsetX - inX) <= HIT_RADIUS) {
           canvas.setPointerCapture(e.pointerId);
@@ -110,12 +102,14 @@ export default function Timeline({ videoRef }: TimelineProps) {
     const { duration } = usePlaybackStore.getState();
 
     if (activeDragRef.current) {
-      const time = pixelToTime(offsetX, duration, canvasWidth, LABEL_WIDTH);
+      const { trimOffset } = usePlaybackStore.getState();
+      // pixelToTime gives display time; add trimOffset to get real video timestamp
+      const realTime = pixelToTime(offsetX, duration, canvasWidth, LABEL_WIDTH) + trimOffset;
       const { type, clipId } = activeDragRef.current;
       if (type === "in") {
-        inPointDragRef.current = { clipId, time };
+        inPointDragRef.current = { clipId, time: realTime };
       } else {
-        outPointDragRef.current = { clipId, time };
+        outPointDragRef.current = { clipId, time: realTime };
       }
       return;
     }
@@ -149,7 +143,8 @@ export default function Timeline({ videoRef }: TimelineProps) {
     isDraggingRef.current = false;
     const time = scrubTimeRef.current;
     if (videoRef.current) {
-      videoRef.current.currentTime = time;
+      const { trimOffset } = usePlaybackStore.getState();
+      videoRef.current.currentTime = time + trimOffset;
     }
     usePlaybackStore.getState().setCurrentTime(time);
   };

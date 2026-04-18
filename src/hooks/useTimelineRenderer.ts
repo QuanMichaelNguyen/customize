@@ -65,9 +65,14 @@ export function useTimelineRenderer(
       const cssWidth = canvas.clientWidth
       const cssHeight = canvas.clientHeight
 
+      const { trimOffset } = usePlaybackStore.getState()
+      // Helper: convert real video timestamp → display time (0-based from trim start)
+      const toDisplay = (t: number) => t - trimOffset
       const currentTime = isDraggingRef.current
         ? scrubTimeRef.current
-        : (videoRef.current?.currentTime ?? usePlaybackStore.getState().currentTime)
+        : (videoRef.current
+            ? videoRef.current.currentTime - trimOffset
+            : usePlaybackStore.getState().currentTime)
 
       const safeDuration = Math.max(duration, 0.001)
       const playheadX = timeToPixel(currentTime, safeDuration, cssWidth, LABEL_WIDTH)
@@ -90,11 +95,11 @@ export function useTimelineRenderer(
       if (duration > 0) {
         for (const clip of clips) {
           const inX = inPointDragRef.current?.clipId === clip.id
-            ? timeToPixel(inPointDragRef.current.time, duration, cssWidth, LABEL_WIDTH)
-            : timeToPixel(clip.startTime, duration, cssWidth, LABEL_WIDTH)
+            ? timeToPixel(toDisplay(inPointDragRef.current.time), duration, cssWidth, LABEL_WIDTH)
+            : timeToPixel(toDisplay(clip.startTime), duration, cssWidth, LABEL_WIDTH)
           const outX = outPointDragRef.current?.clipId === clip.id
-            ? timeToPixel(outPointDragRef.current.time, duration, cssWidth, LABEL_WIDTH)
-            : timeToPixel(clip.endTime, duration, cssWidth, LABEL_WIDTH)
+            ? timeToPixel(toDisplay(outPointDragRef.current.time), duration, cssWidth, LABEL_WIDTH)
+            : timeToPixel(toDisplay(clip.endTime), duration, cssWidth, LABEL_WIDTH)
           ctx.fillStyle = 'rgba(16, 185, 129, 0.25)' // emerald-500 at 25%
           ctx.fillRect(inX, videoTrackY - trackH / 2, outX - inX, trackH)
         }
@@ -110,11 +115,11 @@ export function useTimelineRenderer(
       if (duration > 0) {
         for (const clip of clips) {
           const inX = inPointDragRef.current?.clipId === clip.id
-            ? timeToPixel(inPointDragRef.current.time, duration, cssWidth, LABEL_WIDTH)
-            : timeToPixel(clip.startTime, duration, cssWidth, LABEL_WIDTH)
+            ? timeToPixel(toDisplay(inPointDragRef.current.time), duration, cssWidth, LABEL_WIDTH)
+            : timeToPixel(toDisplay(clip.startTime), duration, cssWidth, LABEL_WIDTH)
           const outX = outPointDragRef.current?.clipId === clip.id
-            ? timeToPixel(outPointDragRef.current.time, duration, cssWidth, LABEL_WIDTH)
-            : timeToPixel(clip.endTime, duration, cssWidth, LABEL_WIDTH)
+            ? timeToPixel(toDisplay(outPointDragRef.current.time), duration, cssWidth, LABEL_WIDTH)
+            : timeToPixel(toDisplay(clip.endTime), duration, cssWidth, LABEL_WIDTH)
 
           ctx.strokeStyle = '#10b981' // emerald-500
           ctx.lineWidth = 2
@@ -143,8 +148,8 @@ export function useTimelineRenderer(
         const overlayRowY = videoY + VIDEO_ROW_HEIGHT - overlayRowH - 2
         ctx.fillStyle = '#f59e0b' // amber-500
         for (const overlay of overlays) {
-          const barX = timeToPixel(overlay.startTime, duration, cssWidth, LABEL_WIDTH)
-          const barEnd = timeToPixel(overlay.endTime, duration, cssWidth, LABEL_WIDTH)
+          const barX = timeToPixel(toDisplay(overlay.startTime), duration, cssWidth, LABEL_WIDTH)
+          const barEnd = timeToPixel(toDisplay(overlay.endTime), duration, cssWidth, LABEL_WIDTH)
           const barW = barEnd - barX
           if (barW > 0) {
             ctx.fillRect(barX, overlayRowY, barW, overlayRowH)
@@ -187,7 +192,19 @@ export function useTimelineRenderer(
             lastCacheWidth = trackWidth
             lastCacheHeight = AUDIO_ROW_HEIGHT
           }
-          ctx.drawImage(waveformCache, LABEL_WIDTH, audioY, trackWidth, AUDIO_ROW_HEIGHT)
+          // Crop waveform to trimmed region.
+          // The cache covers the full audio; we draw only the slice that
+          // corresponds to [trimOffset, trimOffset + duration] of the file.
+          const { videoDuration } = usePlaybackStore.getState()
+          const safeVideoDuration = videoDuration > 0 ? videoDuration : duration
+          const cacheW = waveformCache.width / (window.devicePixelRatio || 1)
+          const srcX = (trimOffset / safeVideoDuration) * cacheW
+          const srcW = (duration / safeVideoDuration) * cacheW
+          ctx.drawImage(
+            waveformCache,
+            srcX, 0, srcW, AUDIO_ROW_HEIGHT,
+            LABEL_WIDTH, audioY, trackWidth, AUDIO_ROW_HEIGHT,
+          )
         }
       }
 

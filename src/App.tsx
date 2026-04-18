@@ -16,6 +16,7 @@ export default function App() {
   const hasVideo = usePlaybackStore((s) => s.hasVideo);
   const currentTime = usePlaybackStore((s) => s.currentTime);
   const duration = usePlaybackStore((s) => s.duration);
+  const trimOffset = usePlaybackStore((s) => s.trimOffset);
   const clips = useClipsStore((s) => s.clips);
   const selectedOverlayId = useOverlaysStore((s) => s.selectedOverlayId);
   const tracks = useTracksStore((s) => s.tracks);
@@ -36,6 +37,19 @@ export default function App() {
   const handleSplit = () => {
     if (!activeClip) return;
     useClipsStore.getState().splitClip(activeClip.id, currentTime);
+  };
+
+  const firstVideoClip = clips.find((c) => c.trackId === "video-0");
+  const trimDisabled =
+    !firstVideoClip ||
+    (firstVideoClip.startTime === trimOffset &&
+      firstVideoClip.endTime === trimOffset + duration);
+
+  const handleTrim = () => {
+    if (!firstVideoClip || !videoRef.current) return;
+    const { startTime, endTime } = firstVideoClip;
+    usePlaybackStore.getState().applyTrim(startTime, endTime);
+    videoRef.current.currentTime = startTime; // seek to trim start (real video time)
   };
 
   const handleAddText = () => {
@@ -78,6 +92,13 @@ export default function App() {
               className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Split
+            </button>
+            <button
+              onClick={handleTrim}
+              disabled={trimDisabled}
+              className="px-3 py-1.5 text-sm bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Trim
             </button>
             <button
               data-testid="add-text-btn"

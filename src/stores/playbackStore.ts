@@ -12,6 +12,8 @@ interface PlaybackState {
   videoWidth: number
   videoHeight: number
   hasVideo: boolean
+  trimOffset: number
+  videoDuration: number
 }
 
 interface PlaybackActions {
@@ -20,6 +22,7 @@ interface PlaybackActions {
   setPlaying: (playing: boolean) => void
   setPlaybackRate: (rate: number) => void
   setVideoMetadata: (meta: VideoMetadata) => void
+  applyTrim: (start: number, end: number) => void
   reset: () => void
 }
 
@@ -31,6 +34,8 @@ const initialState: PlaybackState = {
   videoWidth: 0,
   videoHeight: 0,
   hasVideo: false,
+  trimOffset: 0,
+  videoDuration: 0,
 }
 
 export const usePlaybackStore = create<PlaybackState & PlaybackActions>()(
@@ -50,7 +55,10 @@ export const usePlaybackStore = create<PlaybackState & PlaybackActions>()(
     setPlaybackRate: (rate) => set({ playbackRate: Math.max(0.1, Math.min(16, rate)) }),
 
     setVideoMetadata: ({ duration, videoWidth, videoHeight }) =>
-      set({ duration, videoWidth, videoHeight, hasVideo: true, currentTime: 0, isPlaying: false }),
+      set({ duration, videoWidth, videoHeight, hasVideo: true, currentTime: 0, isPlaying: false, trimOffset: 0, videoDuration: duration }),
+
+    applyTrim: (start, end) =>
+      set({ trimOffset: start, duration: end - start, currentTime: 0 }),
 
     reset: () => set({ ...initialState }),
   }),
